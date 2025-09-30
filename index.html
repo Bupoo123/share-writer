@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Share Writer | 分析一键排版导出（HTML / Word）</title>
+<!-- Markdown 解析 -->
+<script src="https://cdn.bootcdn.net/ajax/libs/marked/4.3.0/marked.min.js"></script>
+<!-- 保存文件 -->
+<script src="https://cdn.bootcdn.net/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --text:#222; --muted:#666; --accent:#3b82f6;
+    --code:#0f172a; --code-bg:#f1f5f9;
+    --serif:"Noto Serif SC","Source Serif 4",serif;
+    --sans:"Inter","Noto Sans SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);margin:0;font-family:var(--sans);color:var(--text)}
+  header{
+    position:sticky;top:0;z-index:9;background:rgba(255,255,255,.85);
+    backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid #e5e7eb
+  }
+  .bar{max-width:1200px;margin:0 auto;padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .title{font-weight:700;margin-right:auto}
+  select,input[type="text"]{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
+  button{
+    padding:10px 14px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;
+    box-shadow:0 4px 14px rgba(59,130,246,.15)
+  }
+  button.secondary{background:#1118270d;color:#111827;border:1px solid #e5e7eb}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .wrap{max-width:1200px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 10px 20px rgba(0,0,0,.03)}
+  .card h3{margin:0;padding:14px 16px;border-bottom:1px solid #f1f5f9}
+  .card .body{padding:14px 16px}
+  textarea{
+    width:100%;min-height:420px;border:1px dashed #d1d5db;border-radius:12px;padding:12px;resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;line-height:1.6;background:#fafafa
+  }
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+  .muted{color:var(--muted);font-size:12px}
+  /* 右侧预览排版 */
+  .doc{
+    --doc-width:840px; --doc-padding:48px; --doc-font:var(--sans);
+    max-width:var(--doc-width); margin:24px auto; padding:var(--doc-padding);
+    border-radius:18px; border:1px solid #eef2f7; background:#fff;
+  }
+  .doc.serif{--doc-font:var(--serif)}
+  .doc.narrow{--doc-width:720px}
+  .doc.wide{--doc-width:980px}
+  .doc *{scroll-margin-top:90px}
+  .doc{font-family:var(--doc-font);line-height:1.75}
+  .doc h1,.doc h2,.doc h3{line-height:1.3}
+  .doc h1{font-size:32px;margin:0 0 8px}
+  .doc h2{font-size:24px;margin:24px 0 8px;border-left:4px solid var(--accent);padding-left:10px}
+  .doc h3{font-size:18px;margin:18px 0 6px}
+  .doc p{margin:.5em 0}
+  .doc ul,.doc ol{padding-left:1.3em;margin:.5em 0}
+  .doc blockquote{margin:12px 0;padding:10px 14px;border-left:4px solid #e5e7eb;background:#fafafa;border-radius:8px}
+  .doc code{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--code-bg);color:var(--code);padding:2px 6px;border-radius:6px}
+  .doc pre{background:var(--code-bg);padding:14px;border-radius:12px;overflow:auto}
+  .toc{background:#fbfdff;border:1px solid #e5f0ff;padding:12px 14px;border-radius:12px;margin:12px 0}
+  .badge{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:#475569;background:#f1f5f9;padding:6px 8px;border-radius:999px}
+  .cover{border-bottom:1px dashed #e5e7eb;margin-bottom:16px;padding-bottom:12px}
+  .cover h1{margin-bottom:0}
+  .cover .sub{color:#64748b}
+  .footer{margin-top:28px;padding-top:10px;border-top:1px dashed #e5e7eb;color:#6b7280;font-size:12px}
+  /* 打印 / 导出 Word 友好 */
+  @media print{
+    header,.card{display:none !important}
+    body{background:#fff}
+    .doc{border:0;box-shadow:none;margin:0;padding:24px;max-width:auto}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="title">Share Writer</div>
+    <label class="muted">主题</label>
+    <select id="theme">
+      <option value="clean" selected>简洁（无衬线）</option>
+      <option value="serif">经典（衬线）</option>
+    </select>
+    <label class="muted">版心</label>
+    <select id="width">
+      <option value="">标准</option>
+      <option value="narrow">窄版</option>
+      <option value="wide">宽版</option>
+    </select>
+    <label class="muted">封面/目录</label>
+    <select id="frontmatter">
+      <option value="cover_toc">封面+目录</option>
+      <option value="cover">仅封面</option>
+      <option value="toc">仅目录</option>
+      <option value="none">都不要</option>
+    </select>
+    <input type="text" id="docTitle" placeholder="文档标题（默认：未命名分析）" style="width:220px">
+    <input type="text" id="docAuthor" placeholder="作者/团队" style="width:160px">
+    <button id="btnPreview" class="secondary">生成预览</button>
+    <button id="btnExportHtml">导出 HTML</button>
+    <button id="btnExportDocx">导出 Word</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h3>① 粘贴内容（支持 Markdown）</h3>
+    <div class="body">
+      <textarea id="src" placeholder="# 标题
+在这里粘贴你的分析。支持 **加粗**、列表、引用、代码块等。
+- 建议用 Markdown 分级小标题（##）便于自动目录。"></textarea>
+      <div class="meta">
+        <div class="muted">小提示：把你刚才的分析直接粘贴，轻微改成 Markdown（如用 “## 小节”）效果最佳。</div>
+        <div style="text-align:right"><span class="badge">⌘/Ctrl + Enter 预览</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>② 实时预览</h3>
+    <div class="body">
+      <div id="preview" class="doc"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 简单：把 Markdown 转为 HTML；并生成目录
+  function buildTOC(container){
+    const hs = container.querySelectorAll('h1,h2,h3');
+    if(!hs.length) return null;
+    const toc = document.createElement('div');
+    toc.className='toc';
+    toc.innerHTML = '<strong>目录</strong>';
+    const ul = document.createElement('ul');
+    ul.style.margin='8px 0'; ul.style.paddingLeft='1.1em';
+    hs.forEach((h,i)=>{
+      if(!h.id) h.id = 'h-' + (i+1);
+      const li = document.createElement('li');
+      li.style.margin='4px 0';
+      li.style.listStyle = 'disc';
+      const a = document.createElement('a');
+      a.textContent = h.textContent.trim();
+      a.href = '#'+h.id;
+      a.style.textDecoration='none';
+      a.style.color='#334155';
+      if(h.tagName==='H2') a.style.fontWeight='600';
+      if(h.tagName==='H3') a.style.marginLeft='8px';
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+    toc.appendChild(ul);
+    return toc;
+  }
+
+  function render(){
+    const src = document.getElementById('src').value.trim();
+    const container = document.getElementById('preview');
+    container.className = 'doc'; // reset classes
+    // 主题与宽度
+    const theme = document.getElementById('theme').value;
+    if(theme==='serif') container.classList.add('serif');
+    const widthClass = document.getElementById('width').value;
+    if(widthClass) container.classList.add(widthClass);
+
+    // 解析 Markdown
+    const html = marked.parse(src || '（在左侧粘贴内容，点击“生成预览”查看效果）');
+
+    // 封面 & 目录
+    const fm = document.getElementById('frontmatter').value;
+    const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+    const author = document.getElementById('docAuthor').value.trim() || '';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString();
+
+    // 构造文档
+    const frag = document.createElement('div');
+
+    // 封面
+    if(fm==='cover' || fm==='cover_toc'){
+      const cover = document.createElement('div');
+      cover.className='cover';
+      cover.innerHTML = `
+        <h1>${escapeHtml(title)}</h1>
+        <div class="sub">${author?escapeHtml(author)+' · ':''}${dateStr}</div>
+      `;
+      frag.appendChild(cover);
+    }
+
+    // 目录
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    if(fm==='toc' || fm==='cover_toc'){
+      const toc = buildTOC(tmp);
+      if(toc) frag.appendChild(toc);
+    }
+
+    // 正文
+    frag.appendChild(tmp);
+    container.innerHTML = '';
+    container.appendChild(frag);
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
+  }
+
+  // 导出完整 HTML（带内联样式，所见即所得）
+  function exportHTML(){
+    render(); // 确保是最新预览
+    const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+    const doc = document.getElementById('preview').cloneNode(true);
+    // 组装干净的 HTML 文档
+    const css = document.querySelector('style').innerHTML;
+    const tpl = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<style>${css}</style>
+</head>
+<body>
+<div class="doc ${doc.className.replace('doc','').trim()}">${doc.innerHTML}</div>
+<div class="footer">由 Share Writer 导出 · ${new Date().toLocaleString()}</div>
+</body>
+</html>`;
+    const blob = new Blob([tpl],{type:"text/html;charset=utf-8"});
+    saveAs(blob, safeFileName(title)+".html");
+  }
+
+  // 导出 Word（使用本地Word导出）
+  function exportDOCX(){
+    exportLocalWord();
+  }
+
+  // 备用RTF导出函数
+  function exportRTF(){
+    render();
+    const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+    const doc = document.getElementById('preview').cloneNode(true);
+    
+    // 简单的RTF格式转换
+    let rtf = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}{\\f1 Microsoft YaHei;}}';
+    rtf += '\\f1\\fs24 '; // 设置中文字体和大小
+    
+    // 转换HTML为RTF
+    const textContent = doc.textContent || doc.innerText || '';
+    const rtfContent = textContent
+      .replace(/\n/g, '\\par ')
+      .replace(/\r/g, '')
+      .replace(/\\/g, '\\\\')
+      .replace(/\{/g, '\\{')
+      .replace(/\}/g, '\\}');
+    
+    rtf += rtfContent;
+    rtf += '}';
+    
+    const blob = new Blob([rtf], { type: 'application/rtf' });
+    saveAs(blob, safeFileName(title) + '.rtf');
+    console.log('RTF文档导出成功');
+  }
+
+  // 简化的Word导出（不依赖外部库）
+  function exportSimpleWord(){
+    render();
+    const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+    const doc = document.getElementById('preview').cloneNode(true);
+    
+    // 生成简单的HTML，Word可以打开
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(title)}</title>
+<style>
+body { font-family: "Microsoft YaHei", "SimSun", sans-serif; line-height: 1.6; margin: 40px; }
+h1 { font-size: 24px; color: #333; margin-bottom: 20px; }
+h2 { font-size: 18px; color: #666; margin-top: 30px; margin-bottom: 15px; }
+h3 { font-size: 16px; color: #888; margin-top: 20px; margin-bottom: 10px; }
+p { margin: 10px 0; }
+ul, ol { margin: 10px 0; padding-left: 30px; }
+blockquote { border-left: 4px solid #ddd; padding-left: 15px; margin: 15px 0; color: #666; }
+code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+${doc.innerHTML}
+</body>
+</html>`;
+    
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    saveAs(blob, safeFileName(title) + '.html');
+    console.log('简化Word格式导出成功（HTML格式，可用Word打开）');
+  }
+
+  // 本地Word导出（完全本地化，不依赖任何外部库）
+  function exportLocalWord(){
+    render();
+    const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+    const doc = document.getElementById('preview').cloneNode(true);
+    
+    // 生成Word兼容的HTML格式
+    const wordHtml = `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" 
+      xmlns:w="urn:schemas-microsoft-com:office:word" 
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<meta name="ProgId" content="Word.Document">
+<meta name="Generator" content="Microsoft Word 15">
+<meta name="Originator" content="Microsoft Word 15">
+<title>${escapeHtml(title)}</title>
+<!--[if gte mso 9]><xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>90</w:Zoom>
+<w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml><![endif]-->
+<style>
+@page {
+  size: A4;
+  margin: 2.54cm 2.54cm 2.54cm 2.54cm;
+}
+body {
+  font-family: "Microsoft YaHei", "SimSun", "宋体", sans-serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #000000;
+  margin: 0;
+  padding: 0;
+}
+h1 {
+  font-size: 18pt;
+  font-weight: bold;
+  color: #000000;
+  margin: 12pt 0 6pt 0;
+  page-break-after: avoid;
+}
+h2 {
+  font-size: 16pt;
+  font-weight: bold;
+  color: #000000;
+  margin: 12pt 0 6pt 0;
+  page-break-after: avoid;
+}
+h3 {
+  font-size: 14pt;
+  font-weight: bold;
+  color: #000000;
+  margin: 12pt 0 6pt 0;
+  page-break-after: avoid;
+}
+p {
+  margin: 0 0 6pt 0;
+  text-align: justify;
+}
+ul, ol {
+  margin: 6pt 0;
+  padding-left: 36pt;
+}
+li {
+  margin: 3pt 0;
+}
+blockquote {
+  margin: 12pt 0;
+  padding-left: 12pt;
+  border-left: 3pt solid #CCCCCC;
+  font-style: italic;
+}
+code {
+  font-family: "Courier New", monospace;
+  background-color: #F5F5F5;
+  padding: 1pt 3pt;
+}
+.toc {
+  border: 1pt solid #CCCCCC;
+  padding: 12pt;
+  margin: 12pt 0;
+  background-color: #F9F9F9;
+}
+.cover {
+  text-align: center;
+  margin-bottom: 24pt;
+}
+.footer {
+  margin-top: 24pt;
+  padding-top: 6pt;
+  border-top: 1pt solid #CCCCCC;
+  font-size: 10pt;
+  color: #666666;
+}
+</style>
+</head>
+<body>
+${doc.innerHTML}
+<div class="footer">由 Share Writer 生成 · ${new Date().toLocaleString()}</div>
+</body>
+</html>`;
+    
+    // 创建Word文档
+    const blob = new Blob([wordHtml], { 
+      type: 'application/msword;charset=utf-8' 
+    });
+    
+    // 尝试使用不同的文件名扩展名
+    const fileName = safeFileName(title);
+    saveAs(blob, fileName + '.doc');
+    
+    console.log('本地Word导出成功');
+    alert('✅ 本地Word导出成功！\n\n文件已保存为 .doc 格式\n可用Microsoft Word打开');
+  }
+
+  function safeFileName(name){
+    return name.replace(/[\\/:*?"<>|]/g,'_').slice(0,60);
+  }
+
+
+  // 事件
+  document.getElementById('btnPreview').addEventListener('click',render);
+  document.getElementById('btnExportHtml').addEventListener('click',exportHTML);
+  document.getElementById('btnExportDocx').addEventListener('click',exportDOCX);
+  document.getElementById('theme').addEventListener('change',render);
+  document.getElementById('width').addEventListener('change',render);
+  document.getElementById('frontmatter').addEventListener('change',render);
+  document.getElementById('docTitle').addEventListener('input',render);
+  document.getElementById('docAuthor').addEventListener('input',render);
+  document.getElementById('src').addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); render(); }
+  });
+
+
+  // 初始示例
+  document.getElementById('src').value =
+`# 卫健系统人事调整后的 IVD 战略路标（示例）
+> 这里粘贴你的分析内容。支持 **Markdown**：列表 / 引用 / 代码块等。
+
+## 先给结论（TL;DR）
+- 去争议化 + 强专业化
+- 班子"公卫+医政+大病管理"更均衡
+- IVD：监测稳定增长，院内更看成本—效果
+
+## 重点方向
+1. 公卫监测（多病原/AMR/院感）
+2. 医政高质量发展（DRG/DIP 适配）
+3. 心脑血管专病网络（胸痛/卒中中心）`;
+  render();
+</script>
+</body>
+</html>
