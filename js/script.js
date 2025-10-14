@@ -308,45 +308,84 @@ function safeFileName(name){
   return name.replace(/[\\/:*?"<>|]/g,'_').slice(0,60);
 }
 
-// PDF导出功能
+// PDF导出功能 - 使用浏览器打印功能
 function exportPDF(){
   render(); // 确保是最新预览
   const title = document.getElementById('docTitle').value.trim() || '未命名分析';
-  const doc = document.getElementById('preview');
   
-  // 使用html2canvas将HTML转换为图片，然后生成PDF
-  html2canvas(doc, {
-    scale: 2, // 提高清晰度
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: '#ffffff'
-  }).then(canvas => {
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    
-    const imgWidth = 210; // A4宽度
-    const pageHeight = 295; // A4高度
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    
-    let position = 0;
-    
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-    
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-    
-    pdf.save(safeFileName(title) + '.pdf');
-    console.log('PDF导出成功');
-  }).catch(error => {
-    console.error('PDF导出失败:', error);
-    alert('PDF导出失败，请重试');
-  });
+  // 创建打印样式
+  const printStyles = `
+    <style>
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .print-content, .print-content * {
+          visibility: visible;
+        }
+        .print-content {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        .doc {
+          border: none !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+          padding: 20px !important;
+          max-width: none !important;
+        }
+        .cover {
+          page-break-after: always;
+        }
+        .toc {
+          page-break-after: always;
+        }
+        h1, h2, h3 {
+          page-break-after: avoid;
+        }
+        p, li {
+          orphans: 3;
+          widows: 3;
+        }
+      }
+    </style>
+  `;
+  
+  // 创建打印内容
+  const printContent = document.getElementById('preview').cloneNode(true);
+  printContent.className = 'print-content';
+  
+  // 创建打印窗口
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>${escapeHtml(title)}</title>
+      ${printStyles}
+    </head>
+    <body>
+      ${printContent.outerHTML}
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  
+  // 等待内容加载完成后打印
+  printWindow.onload = function() {
+    setTimeout(() => {
+      printWindow.print();
+      // 打印对话框关闭后关闭窗口
+      printWindow.onafterprint = function() {
+        printWindow.close();
+      };
+    }, 500);
+  };
+  
+  console.log('PDF导出（打印模式）已启动');
 }
 
 // 显示使用说明
