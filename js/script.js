@@ -332,9 +332,114 @@ function exportPDF(){
         .doc {
           border: none !important;
           box-shadow: none !important;
-          margin: 0 !important;
-          padding: 20px !important;
-          max-width: none !important;
+          margin: 0 auto !important;
+          padding: 40px !important;
+          max-width: 800px !important;
+          font-family: var(--font-default) !important;
+          line-height: 1.75 !important;
+          color: #222 !important;
+          background: white !important;
+        }
+        .doc.font-microsoft-yahei { font-family: "Microsoft YaHei", "微软雅黑", sans-serif !important; }
+        .doc.font-simsun { font-family: "SimSun", "宋体", serif !important; }
+        .doc.font-kaiti { font-family: "KaiTi", "楷体", serif !important; }
+        .doc.font-heiti { font-family: "SimHei", "黑体", sans-serif !important; }
+        .doc.font-fangsong { font-family: "FangSong", "仿宋", serif !important; }
+        .doc h1 {
+          font-size: 28px !important;
+          margin: 0 0 16px 0 !important;
+          color: #1a1a1a !important;
+          font-weight: 700 !important;
+        }
+        .doc h2 {
+          font-size: 22px !important;
+          margin: 32px 0 12px 0 !important;
+          color: #2d3748 !important;
+          font-weight: 600 !important;
+          border-left: 4px solid #3b82f6 !important;
+          padding-left: 12px !important;
+        }
+        .doc h3 {
+          font-size: 18px !important;
+          margin: 24px 0 8px 0 !important;
+          color: #4a5568 !important;
+          font-weight: 600 !important;
+        }
+        .doc p {
+          margin: 8px 0 !important;
+          text-align: justify !important;
+        }
+        .doc ul, .doc ol {
+          padding-left: 24px !important;
+          margin: 12px 0 !important;
+        }
+        .doc li {
+          margin: 4px 0 !important;
+        }
+        .doc blockquote {
+          margin: 16px 0 !important;
+          padding: 12px 16px !important;
+          border-left: 4px solid #e5e7eb !important;
+          background: #f8fafc !important;
+          border-radius: 8px !important;
+          color: #4a5568 !important;
+        }
+        .doc code {
+          font-family: 'Courier New', monospace !important;
+          background: #f1f5f9 !important;
+          color: #0f172a !important;
+          padding: 2px 6px !important;
+          border-radius: 4px !important;
+          font-size: 14px !important;
+        }
+        .doc pre {
+          background: #f1f5f9 !important;
+          padding: 16px !important;
+          border-radius: 8px !important;
+          overflow: visible !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+        .toc {
+          background: #fbfdff !important;
+          border: 1px solid #e5f0ff !important;
+          padding: 16px !important;
+          border-radius: 8px !important;
+          margin: 16px 0 !important;
+        }
+        .toc strong {
+          color: #1e40af !important;
+          font-size: 16px !important;
+        }
+        .toc ul {
+          margin: 8px 0 !important;
+          padding-left: 16px !important;
+        }
+        .toc a {
+          color: #334155 !important;
+          text-decoration: none !important;
+        }
+        .cover {
+          text-align: center !important;
+          border-bottom: 2px solid #e5e7eb !important;
+          margin-bottom: 24px !important;
+          padding-bottom: 24px !important;
+          page-break-after: always !important;
+        }
+        .cover h1 {
+          margin-bottom: 8px !important;
+          color: #1a1a1a !important;
+        }
+        .cover .sub {
+          color: #64748b !important;
+          font-size: 14px !important;
+        }
+        .footer {
+          margin-top: 32px !important;
+          padding-top: 16px !important;
+          border-top: 1px dashed #e5e7eb !important;
+          color: #6b7280 !important;
+          font-size: 12px !important;
+          text-align: center !important;
         }
         .cover {
           page-break-after: always;
@@ -356,6 +461,12 @@ function exportPDF(){
   // 创建打印内容
   const printContent = document.getElementById('preview').cloneNode(true);
   printContent.className = 'print-content';
+  
+  // 应用字体选择到打印内容
+  const fontFamily = document.getElementById('fontFamily').value;
+  if(fontFamily && fontFamily !== 'default') {
+    printContent.classList.add('font-' + fontFamily);
+  }
   
   // 创建打印窗口
   const printWindow = window.open('', '_blank');
