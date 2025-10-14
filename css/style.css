@@ -3,6 +3,12 @@
   --code:#0f172a; --code-bg:#f1f5f9;
   --serif:"Noto Serif SC","Source Serif 4",serif;
   --sans:"Inter","Noto Sans SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  --font-default:"Inter","Noto Sans SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  --font-microsoft-yahei:"Microsoft YaHei","微软雅黑",sans-serif;
+  --font-simsun:"SimSun","宋体",serif;
+  --font-kaiti:"KaiTi","楷体",serif;
+  --font-heiti:"SimHei","黑体",sans-serif;
+  --font-fangsong:"FangSong","仿宋",serif;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);margin:0;font-family:var(--sans);color:var(--text)}
@@ -56,6 +62,17 @@ textarea{
 .cover h1{margin-bottom:0}
 .cover .sub{color:#64748b}
 .footer{margin-top:28px;padding-top:10px;border-top:1px dashed #e5e7eb;color:#6b7280;font-size:12px}
+/* 设置行样式 */
+.settings-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.settings-row:last-child{margin-bottom:0}
+.settings-row label{margin-right:4px;white-space:nowrap}
+/* 字体样式 */
+.doc.font-default{font-family:var(--font-default)}
+.doc.font-microsoft-yahei{font-family:var(--font-microsoft-yahei)}
+.doc.font-simsun{font-family:var(--font-simsun)}
+.doc.font-kaiti{font-family:var(--font-kaiti)}
+.doc.font-heiti{font-family:var(--font-heiti)}
+.doc.font-fangsong{font-family:var(--font-fangsong)}
 /* 打印 / 导出 Word 友好 */
 @media print{
   header,.card{display:none !important}

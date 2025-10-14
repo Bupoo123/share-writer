@@ -35,6 +35,9 @@ function render(){
   if(theme==='serif') container.classList.add('serif');
   const widthClass = document.getElementById('width').value;
   if(widthClass) container.classList.add(widthClass);
+  // 字体选择
+  const fontFamily = document.getElementById('fontFamily').value;
+  if(fontFamily && fontFamily !== 'default') container.classList.add('font-' + fontFamily);
 
   // 解析 Markdown
   const html = marked.parse(src || '（在左侧粘贴内容，点击"生成预览"查看效果）');
@@ -72,6 +75,20 @@ function render(){
   frag.appendChild(tmp);
   container.innerHTML = '';
   container.appendChild(frag);
+  
+  // 更新统计信息
+  updateStats();
+}
+
+// 更新字数统计和页数统计
+function updateStats(){
+  const src = document.getElementById('src').value.trim();
+  const wordCount = src.length;
+  document.getElementById('wordCount').textContent = `字数: ${wordCount}`;
+  
+  // 估算页数（基于A4纸张，每页约500字）
+  const estimatedPages = Math.ceil(wordCount / 500);
+  document.getElementById('pageCount').textContent = `页数: ${estimatedPages}`;
 }
 
 function escapeHtml(s){
@@ -289,6 +306,47 @@ ${doc.innerHTML}
 
 function safeFileName(name){
   return name.replace(/[\\/:*?"<>|]/g,'_').slice(0,60);
+}
+
+// PDF导出功能
+function exportPDF(){
+  render(); // 确保是最新预览
+  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+  const doc = document.getElementById('preview');
+  
+  // 使用html2canvas将HTML转换为图片，然后生成PDF
+  html2canvas(doc, {
+    scale: 2, // 提高清晰度
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#ffffff'
+  }).then(canvas => {
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    const imgWidth = 210; // A4宽度
+    const pageHeight = 295; // A4高度
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    
+    let position = 0;
+    
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    pdf.save(safeFileName(title) + '.pdf');
+    console.log('PDF导出成功');
+  }).catch(error => {
+    console.error('PDF导出失败:', error);
+    alert('PDF导出失败，请重试');
+  });
 }
 
 // 显示使用说明
@@ -511,15 +569,18 @@ Share Writer 是一个开源工具，如果您遇到问题或有改进建议：
 document.getElementById('btnPreview').addEventListener('click',render);
 document.getElementById('btnExportHtml').addEventListener('click',exportHTML);
 document.getElementById('btnExportDocx').addEventListener('click',exportDOCX);
+document.getElementById('btnExportPdf').addEventListener('click',exportPDF);
 document.getElementById('btnHelp').addEventListener('click',showHelp);
 document.getElementById('theme').addEventListener('change',render);
 document.getElementById('width').addEventListener('change',render);
+document.getElementById('fontFamily').addEventListener('change',render);
 document.getElementById('frontmatter').addEventListener('change',render);
 document.getElementById('docTitle').addEventListener('input',render);
 document.getElementById('docAuthor').addEventListener('input',render);
 document.getElementById('src').addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); render(); }
 });
+document.getElementById('src').addEventListener('input',updateStats);
 
 // 初始示例
 document.getElementById('src').value =

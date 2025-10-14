@@ -3,13 +3,16 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Share Writer | 分析一键排版导出（HTML / Word）</title>
+<title>Share Writer | 分析一键排版导出（HTML / Word / PDF）</title>
 <!-- 样式文件 -->
 <link rel="stylesheet" href="css/style.css">
 <!-- Markdown 解析 -->
 <script src="https://cdn.bootcdn.net/ajax/libs/marked/4.3.0/marked.min.js"></script>
 <!-- 保存文件 -->
 <script src="https://cdn.bootcdn.net/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- PDF导出 -->
+<script src="https://cdn.bootcdn.net/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <header>
@@ -18,45 +21,69 @@
       <img src="assets/images/logo.png" alt="Share Writer" class="logo" onerror="this.style.display='none'">
       Share Writer
     </div>
-    <label class="muted">主题</label>
-    <select id="theme">
-      <option value="clean" selected>简洁（无衬线）</option>
-      <option value="serif">经典（衬线）</option>
-    </select>
-    <label class="muted">版心</label>
-    <select id="width">
-      <option value="">标准</option>
-      <option value="narrow">窄版</option>
-      <option value="wide">宽版</option>
-    </select>
-    <label class="muted">封面/目录</label>
-    <select id="frontmatter">
-      <option value="cover_toc">封面+目录</option>
-      <option value="cover">仅封面</option>
-      <option value="toc">仅目录</option>
-      <option value="none">都不要</option>
-    </select>
-    <input type="text" id="docTitle" placeholder="文档标题（默认：未命名分析）" style="width:220px">
-    <input type="text" id="docAuthor" placeholder="作者/团队" style="width:160px">
   </div>
   <div class="bar" style="padding:8px 16px;border-top:1px solid #e5e7eb;background:rgba(255,255,255,.95)">
     <button id="btnPreview" class="secondary">生成预览</button>
     <button id="btnExportHtml">导出 HTML</button>
     <button id="btnExportDocx">导出 Word</button>
+    <button id="btnExportPdf">导出 PDF</button>
     <button id="btnHelp" class="secondary" style="font-size:12px;padding:6px 8px;">使用说明</button>
   </div>
 </header>
 
 <div class="wrap">
   <div class="card">
-    <h3>① 粘贴内容（支持 Markdown）</h3>
+    <h3>① 文档设置</h3>
+    <div class="body">
+      <div class="settings-row">
+        <label class="muted">主题</label>
+        <select id="theme">
+          <option value="clean" selected>简洁（无衬线）</option>
+          <option value="serif">经典（衬线）</option>
+        </select>
+        <label class="muted">版型</label>
+        <select id="width">
+          <option value="">标准</option>
+          <option value="narrow">窄版</option>
+          <option value="wide">宽版</option>
+        </select>
+        <label class="muted">字体</label>
+        <select id="fontFamily">
+          <option value="default" selected>默认字体</option>
+          <option value="microsoft-yahei">微软雅黑</option>
+          <option value="simsun">宋体</option>
+          <option value="kaiti">楷体</option>
+          <option value="heiti">黑体</option>
+          <option value="fangsong">仿宋</option>
+        </select>
+        <label class="muted">封面/目录</label>
+        <select id="frontmatter">
+          <option value="cover_toc">封面+目录</option>
+          <option value="cover">仅封面</option>
+          <option value="toc">仅目录</option>
+          <option value="none">都不要</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <input type="text" id="docTitle" placeholder="文档标题（默认：未命名分析）" style="width:220px">
+        <input type="text" id="docAuthor" placeholder="作者/团队" style="width:160px">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>② 粘贴内容（支持 Markdown）</h3>
     <div class="body">
       <textarea id="src" placeholder="# 标题
 在这里粘贴你的分析。支持 **加粗**、列表、引用、代码块等。
 - 建议用 Markdown 分级小标题（##）便于自动目录。"></textarea>
       <div class="meta">
         <div class="muted">小提示：把你刚才的分析直接粘贴，轻微改成 Markdown（如用 "## 小节"）效果最佳。</div>
-        <div style="text-align:right"><span class="badge">⌘/Ctrl + Enter 预览</span></div>
+        <div style="text-align:right">
+          <span class="badge">⌘/Ctrl + Enter 预览</span>
+          <span class="badge" id="wordCount">字数: 0</span>
+          <span class="badge" id="pageCount">页数: 0</span>
+        </div>
       </div>
     </div>
   </div>
