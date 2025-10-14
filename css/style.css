@@ -17,8 +17,18 @@ header{
   backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid #e5e7eb
 }
 .bar{max-width:1200px;margin:0 auto;padding:10px 16px;display:flex;gap:8px;flex-wrap:nowrap;align-items:center;overflow-x:auto}
-.title{font-weight:700;margin-right:auto;display:flex;align-items:center;gap:8px}
-.logo{width:96px;height:96px;object-fit:contain}
+.title{font-weight:700;margin-right:auto;display:flex;align-items:center;gap:12px}
+.logo{width:48px;height:48px;object-fit:contain}
+.title-text{
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
 select,input[type="text"]{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
 button{
   padding:10px 14px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;
