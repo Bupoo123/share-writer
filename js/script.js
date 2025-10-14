@@ -100,8 +100,58 @@ function exportHTML(){
   render(); // 确保是最新预览
   const title = document.getElementById('docTitle').value.trim() || '未命名分析';
   const doc = document.getElementById('preview').cloneNode(true);
-  // 组装干净的 HTML 文档
-  const css = document.querySelector('style').innerHTML;
+  
+  // 获取所有样式表的内容
+  let css = '';
+  const styleSheets = document.styleSheets;
+  for (let i = 0; i < styleSheets.length; i++) {
+    try {
+      const rules = styleSheets[i].cssRules || styleSheets[i].rules;
+      if (rules) {
+        for (let j = 0; j < rules.length; j++) {
+          css += rules[j].cssText + '\n';
+        }
+      }
+    } catch (e) {
+      // 跨域样式表可能无法访问，跳过
+      console.warn('无法访问样式表:', e);
+    }
+  }
+  
+  // 如果没有获取到样式，使用内联样式
+  if (!css) {
+    css = `
+      :root{--bg:#f7f8fa;--card:#fff;--text:#222;--muted:#666;--accent:#3b82f6;--code:#0f172a;--code-bg:#f1f5f9;--serif:"Noto Serif SC","Source Serif 4",serif;--sans:"Inter","Noto Sans SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;--font-default:"Inter","Noto Sans SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;--font-microsoft-yahei:"Microsoft YaHei","微软雅黑",sans-serif;--font-simsun:"SimSun","宋体",serif;--font-kaiti:"KaiTi","楷体",serif;--font-heiti:"SimHei","黑体",sans-serif;--font-fangsong:"FangSong","仿宋",serif;}
+      *{box-sizing:border-box}
+      body{background:var(--bg);margin:0;font-family:var(--sans);color:var(--text)}
+      .doc{--doc-width:840px;--doc-padding:48px;--doc-font:var(--sans);max-width:var(--doc-width);margin:24px auto;padding:var(--doc-padding);border-radius:18px;border:1px solid #eef2f7;background:#fff;font-family:var(--doc-font);line-height:1.75}
+      .doc.serif{--doc-font:var(--serif)}
+      .doc.narrow{--doc-width:720px}
+      .doc.wide{--doc-width:980px}
+      .doc *{scroll-margin-top:90px}
+      .doc h1,.doc h2,.doc h3{line-height:1.3}
+      .doc h1{font-size:32px;margin:0 0 8px}
+      .doc h2{font-size:24px;margin:24px 0 8px;border-left:4px solid var(--accent);padding-left:10px}
+      .doc h3{font-size:18px;margin:18px 0 6px}
+      .doc p{margin:.5em 0}
+      .doc ul,.doc ol{padding-left:1.3em;margin:.5em 0}
+      .doc blockquote{margin:12px 0;padding:10px 14px;border-left:4px solid #e5e7eb;background:#fafafa;border-radius:8px}
+      .doc code{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--code-bg);color:var(--code);padding:2px 6px;border-radius:6px}
+      .doc pre{background:var(--code-bg);padding:14px;border-radius:12px;overflow:auto}
+      .toc{background:#fbfdff;border:1px solid #e5f0ff;padding:12px 14px;border-radius:12px;margin:12px 0}
+      .cover{border-bottom:1px dashed #e5e7eb;margin-bottom:16px;padding-bottom:12px}
+      .cover h1{margin-bottom:0}
+      .cover .sub{color:#64748b}
+      .footer{margin-top:28px;padding-top:10px;border-top:1px dashed #e5e7eb;color:#6b7280;font-size:12px}
+      .doc.font-default{font-family:var(--font-default)}
+      .doc.font-microsoft-yahei{font-family:var(--font-microsoft-yahei)}
+      .doc.font-simsun{font-family:var(--font-simsun)}
+      .doc.font-kaiti{font-family:var(--font-kaiti)}
+      .doc.font-heiti{font-family:var(--font-heiti)}
+      .doc.font-fangsong{font-family:var(--font-fangsong)}
+    `;
+  }
+  
   const tpl = `
 <!DOCTYPE html>
 <html lang="zh-CN">
