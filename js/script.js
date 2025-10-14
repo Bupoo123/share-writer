@@ -317,6 +317,13 @@ function exportPDF(){
   const printStyles = `
     <style>
       @media print {
+        @page {
+          margin: 2cm 2cm 2cm 2cm;
+          @top-center { content: ""; }
+          @bottom-center { content: counter(page); }
+          @bottom-left { content: ""; }
+          @bottom-right { content: ""; }
+        }
         body * {
           visibility: hidden;
         }
@@ -453,6 +460,19 @@ function exportPDF(){
         p, li {
           orphans: 3;
           widows: 3;
+        }
+        /* 隐藏浏览器默认的页眉页脚 */
+        @page {
+          margin: 2cm !important;
+          size: A4;
+        }
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        /* 确保没有额外的页眉页脚 */
+        ::-webkit-scrollbar {
+          display: none;
         }
       }
     </style>
