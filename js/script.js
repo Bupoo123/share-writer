@@ -95,6 +95,389 @@ function escapeHtml(s){
   return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
 }
 
+// 微信分享专用HTML导出（优化移动端和微信浏览器）
+function exportWechatHTML(){
+  render(); // 确保是最新预览
+  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+  const doc = document.getElementById('preview').cloneNode(true);
+  
+  // 微信优化的CSS样式
+  const wechatCSS = `
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: #fff;
+        font-size: 16px;
+        max-width: 100%;
+        word-wrap: break-word;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .doc {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 0;
+        background: #fff;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        color: #1a1a1a;
+        font-weight: 600;
+        line-height: 1.3;
+        margin: 24px 0 12px 0;
+        word-break: break-word;
+      }
+      h1 { font-size: 24px; margin-top: 0; }
+      h2 { font-size: 20px; border-left: 4px solid #3b82f6; padding-left: 12px; }
+      h3 { font-size: 18px; }
+      h4 { font-size: 16px; }
+      p {
+        margin: 12px 0;
+        line-height: 1.7;
+        word-break: break-word;
+      }
+      ul, ol {
+        margin: 12px 0;
+        padding-left: 24px;
+      }
+      li {
+        margin: 6px 0;
+        line-height: 1.6;
+      }
+      blockquote {
+        margin: 16px 0;
+        padding: 12px 16px;
+        background: #f8f9fa;
+        border-left: 4px solid #e9ecef;
+        border-radius: 4px;
+        color: #6c757d;
+      }
+      code {
+        background: #f1f3f4;
+        color: #d63384;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        font-size: 14px;
+      }
+      pre {
+        background: #f8f9fa;
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 16px 0;
+        border: 1px solid #e9ecef;
+      }
+      pre code {
+        background: none;
+        color: #333;
+        padding: 0;
+      }
+      .toc {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        padding: 16px;
+        border-radius: 8px;
+        margin: 16px 0;
+      }
+      .toc strong {
+        color: #1a1a1a;
+        font-size: 16px;
+        display: block;
+        margin-bottom: 8px;
+      }
+      .toc ul {
+        margin: 0;
+        padding-left: 16px;
+      }
+      .toc a {
+        color: #3b82f6;
+        text-decoration: none;
+        display: block;
+        padding: 4px 0;
+      }
+      .toc a:hover {
+        text-decoration: underline;
+      }
+      .cover {
+        text-align: center;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 24px;
+        padding-bottom: 24px;
+      }
+      .cover h1 {
+        margin-bottom: 8px;
+        color: #1a1a1a;
+      }
+      .cover .sub {
+        color: #6c757d;
+        font-size: 14px;
+      }
+      .footer {
+        margin-top: 32px;
+        padding-top: 16px;
+        border-top: 1px solid #e9ecef;
+        color: #6c757d;
+        font-size: 12px;
+        text-align: center;
+      }
+      /* 微信浏览器优化 */
+      @media screen and (max-width: 480px) {
+        body { padding: 12px; font-size: 15px; }
+        h1 { font-size: 22px; }
+        h2 { font-size: 18px; }
+        h3 { font-size: 16px; }
+        .toc { padding: 12px; }
+        blockquote { padding: 10px 12px; }
+        pre { padding: 12px; }
+      }
+      /* 确保在微信中正确显示 */
+      img { max-width: 100%; height: auto; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 8px; border: 1px solid #ddd; }
+    </style>
+  `;
+  
+  const wechatHTML = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>${escapeHtml(title)}</title>
+${wechatCSS}
+</head>
+<body>
+<div class="doc">${doc.innerHTML}</div>
+<div class="footer">由 Share Writer 生成 · ${new Date().toLocaleString()}</div>
+</body>
+</html>`;
+  
+  const blob = new Blob([wechatHTML], {type: "text/html;charset=utf-8"});
+  saveAs(blob, safeFileName(title) + "_微信分享版.html");
+  
+  // 显示使用提示
+  alert('✅ 微信分享版HTML已生成！\n\n📱 优化特性：\n• 完美适配微信浏览器\n• 移动端友好显示\n• 自动换行和字体优化\n• 支持微信内直接打开\n\n💡 使用建议：\n1. 将文件上传到服务器或云存储\n2. 获取公开访问链接\n3. 在微信中分享链接');
+}
+
+// 生成微信分享卡片信息
+function generateWechatShareInfo() {
+  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+  const author = document.getElementById('docAuthor').value.trim() || '';
+  const content = document.getElementById('src').value.trim();
+  
+  // 提取前200个字符作为描述
+  const description = content.replace(/[#*`\-\+\>\|]/g, '').substring(0, 200) + '...';
+  
+  // 生成分享卡片HTML
+  const shareCardHTML = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="format-detection" content="telephone=no">
+<title>${escapeHtml(title)}</title>
+<!-- 微信分享卡片优化 -->
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Share Writer">
+<meta name="description" content="${escapeHtml(description)}">
+<meta name="keywords" content="文档,分析,报告,Share Writer">
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background: #fff;
+  margin: 0;
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.header {
+  text-align: center;
+  border-bottom: 2px solid #3b82f6;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 10px 0;
+}
+.subtitle {
+  color: #666;
+  font-size: 14px;
+}
+.content {
+  font-size: 16px;
+  line-height: 1.8;
+}
+.content h1, .content h2, .content h3 {
+  color: #1a1a1a;
+  margin: 24px 0 12px 0;
+}
+.content h1 { font-size: 24px; }
+.content h2 { font-size: 20px; border-left: 4px solid #3b82f6; padding-left: 12px; }
+.content h3 { font-size: 18px; }
+.content p { margin: 12px 0; }
+.content ul, .content ol { padding-left: 24px; }
+.content blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-left: 4px solid #e9ecef;
+  border-radius: 4px;
+  color: #6c757d;
+}
+.content code {
+  background: #f1f3f4;
+  color: #d63384;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+.footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+  color: #666;
+  font-size: 12px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1 class="title">${escapeHtml(title)}</h1>
+  ${author ? `<div class="subtitle">作者：${escapeHtml(author)} · ${new Date().toLocaleDateString()}</div>` : ''}
+</div>
+<div class="content">
+  ${marked.parse(content || '（暂无内容）')}
+</div>
+<div class="footer">
+  由 Share Writer 生成 · ${new Date().toLocaleString()}
+</div>
+</body>
+</html>`;
+  
+  return shareCardHTML;
+}
+
+// 导出微信分享卡片
+function exportShareCard() {
+  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+  const shareCardHTML = generateWechatShareInfo();
+  
+  const blob = new Blob([shareCardHTML], {type: "text/html;charset=utf-8"});
+  saveAs(blob, safeFileName(title) + "_分享卡片.html");
+  
+  // 显示使用提示
+  alert('✅ 微信分享卡片已生成！\n\n🎯 卡片特性：\n• 包含完整的 Open Graph 元数据\n• 微信分享时显示标题和描述\n• 移动端优化的阅读体验\n• 支持微信内直接打开\n\n💡 使用建议：\n1. 上传到服务器获取公开链接\n2. 在微信中分享链接\n3. 微信会自动抓取卡片信息显示预览');
+}
+
+// 导出微信简化版（纯文本，最小化）
+function exportWechatSimple() {
+  render();
+  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+  const author = document.getElementById('docAuthor').value.trim() || '';
+  const doc = document.getElementById('preview').cloneNode(true);
+  
+  // 提取纯文本内容
+  const textContent = doc.textContent || doc.innerText || '';
+  
+  // 生成极简HTML
+  const simpleHTML = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<title>${escapeHtml(title)}</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  background: #fff;
+  padding: 20px;
+  max-width: 100%;
+  word-wrap: break-word;
+  -webkit-text-size-adjust: 100%;
+}
+h1, h2, h3 { color: #1a1a1a; margin: 20px 0 10px 0; }
+h1 { font-size: 24px; }
+h2 { font-size: 20px; }
+h3 { font-size: 18px; }
+p { margin: 10px 0; }
+ul, ol { padding-left: 20px; margin: 10px 0; }
+li { margin: 5px 0; }
+blockquote {
+  margin: 15px 0;
+  padding: 10px 15px;
+  background: #f5f5f5;
+  border-left: 4px solid #ddd;
+  color: #666;
+}
+code {
+  background: #f0f0f0;
+  color: #d63384;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+.header {
+  text-align: center;
+  border-bottom: 2px solid #3b82f6;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+.title { font-size: 24px; font-weight: 600; color: #1a1a1a; margin-bottom: 5px; }
+.subtitle { color: #666; font-size: 14px; }
+.footer {
+  margin-top: 30px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+  color: #999;
+  font-size: 12px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="title">${escapeHtml(title)}</div>
+  ${author ? `<div class="subtitle">作者：${escapeHtml(author)} · ${new Date().toLocaleDateString()}</div>` : ''}
+</div>
+<div class="content">
+  ${doc.innerHTML}
+</div>
+<div class="footer">由 Share Writer 生成 · ${new Date().toLocaleString()}</div>
+</body>
+</html>`;
+  
+  const blob = new Blob([simpleHTML], {type: "text/html;charset=utf-8"});
+  saveAs(blob, safeFileName(title) + "_微信简化版.html");
+  
+  alert('✅ 微信简化版已生成！\n\n📱 简化特性：\n• 极简样式，加载快速\n• 完美适配微信浏览器\n• 最小化文件大小\n• 兼容性最佳\n\n💡 适用场景：\n• 网络环境较差时\n• 需要快速加载\n• 兼容性要求高');
+}
+
 // 导出完整 HTML（带内联样式，所见即所得）
 function exportHTML(){
   render(); // 确保是最新预览
@@ -788,6 +1171,9 @@ Share Writer 是一个开源工具，如果您遇到问题或有改进建议：
 // 事件
 document.getElementById('btnPreview').addEventListener('click',render);
 document.getElementById('btnExportHtml').addEventListener('click',exportHTML);
+document.getElementById('btnExportWechat').addEventListener('click',exportWechatHTML);
+document.getElementById('btnExportShareCard').addEventListener('click',exportShareCard);
+document.getElementById('btnExportSimple').addEventListener('click',exportWechatSimple);
 document.getElementById('btnExportDocx').addEventListener('click',exportDOCX);
 document.getElementById('btnExportPdf').addEventListener('click',exportPDF);
 document.getElementById('btnHelp').addEventListener('click',showHelp);
