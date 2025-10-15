@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Share Writer | 分析一键排版导出（HTML / Word / PDF）</title>
+<title>Share Writer | 一键排版导出（支持微信分享）</title>
 <!-- 样式文件 -->
 <link rel="stylesheet" href="css/style.css">
 <!-- Markdown 解析 -->
@@ -21,10 +21,10 @@
   </div>
   <div class="bar" style="padding:8px 16px;border-top:1px solid #e5e7eb;background:rgba(255,255,255,.95)">
     <button id="btnPreview" class="secondary">生成预览</button>
+    <button id="btnExportImage" style="background:#10b981;">📷 导出图片</button>
+    <button id="btnExportWechatHtml" style="background:#8b5cf6;">💬 微信版HTML</button>
+    <button id="btnExportText" style="background:#f59e0b;">📄 纯文本</button>
     <button id="btnExportHtml">导出 HTML</button>
-    <button id="btnExportWechat">微信分享版</button>
-    <button id="btnExportShareCard">分享卡片</button>
-    <button id="btnExportSimple">简化版</button>
     <button id="btnExportDocx">导出 Word</button>
     <button id="btnExportPdf">导出 PDF</button>
     <button id="btnHelp" class="secondary" style="font-size:12px;padding:6px 8px;">使用说明</button>

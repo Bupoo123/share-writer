@@ -83,50 +83,6 @@ textarea{
 .doc.font-kaiti{font-family:var(--font-kaiti)}
 .doc.font-heiti{font-family:var(--font-heiti)}
 .doc.font-fangsong{font-family:var(--font-fangsong)}
-/* 移动端和微信浏览器优化 */
-@media screen and (max-width: 768px) {
-  .wrap { padding: 0 12px; }
-  .card { margin-bottom: 12px; }
-  .card .body { padding: 12px; }
-  .settings-row { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .settings-row label { margin-bottom: 4px; }
-  textarea { min-height: 300px; font-size: 14px; }
-  .doc { padding: 20px; margin: 16px auto; }
-  .doc h1 { font-size: 28px; }
-  .doc h2 { font-size: 22px; }
-  .doc h3 { font-size: 18px; }
-  .bar { padding: 8px 12px; flex-wrap: wrap; }
-  .bar button { font-size: 12px; padding: 8px 10px; }
-  .title-text { font-size: 20px; }
-  .logo { width: 64px; height: 64px; }
-}
-
-@media screen and (max-width: 480px) {
-  .wrap { padding: 0 8px; }
-  .card .body { padding: 8px; }
-  .doc { padding: 16px; margin: 12px auto; }
-  .doc h1 { font-size: 24px; }
-  .doc h2 { font-size: 20px; }
-  .doc h3 { font-size: 16px; }
-  .bar { padding: 6px 8px; }
-  .bar button { font-size: 11px; padding: 6px 8px; }
-  .title-text { font-size: 18px; }
-  .logo { width: 48px; height: 48px; }
-  .meta { grid-template-columns: 1fr; }
-}
-
-/* 微信浏览器特殊优化 */
-@media screen and (-webkit-min-device-pixel-ratio: 2) {
-  .doc { 
-    -webkit-text-size-adjust: 100%;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .doc h1, .doc h2, .doc h3 {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-}
-
 /* 打印 / 导出 Word 友好 */
 @media print{
   header,.card{display:none !important}
