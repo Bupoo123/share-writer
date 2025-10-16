@@ -388,6 +388,12 @@ function exportImage(){
       background: white;
       padding: 40px;
       font-family: var(--font-default);
+      font-smoothing: antialiased;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      font-feature-settings: "kern" 1;
+      font-kerning: normal;
     `;
     
     // 复制预览内容
@@ -401,31 +407,56 @@ function exportImage(){
       clonedContent.classList.add('font-' + fontFamily);
     }
     
-    // 生成图片
-    html2canvas(tempContainer, {
-      backgroundColor: '#ffffff',
-      scale: 2, // 提高清晰度
-      useCORS: true,
-      allowTaint: true,
-      width: 800,
-      height: tempContainer.scrollHeight
-    }).then(canvas => {
-      // 下载图片
-      canvas.toBlob(function(blob) {
-        saveAs(blob, safeFileName(title) + '.png');
-      }, 'image/png');
-      
-      // 清理临时元素
-      document.body.removeChild(tempContainer);
-      
-      console.log('图片导出成功');
-      alert('✅ 图片导出成功！\n\n文件已保存为 PNG 格式\n可直接在微信中分享');
-    }).catch(error => {
-      console.error('图片导出失败:', error);
-      alert('❌ 图片导出失败，请重试');
-      document.body.removeChild(tempContainer);
-    });
-  }
+    // 等待字体加载完成
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        setTimeout(() => generateImageWithCanvas(), 100);
+      });
+    } else {
+      setTimeout(() => generateImageWithCanvas(), 500);
+    }
+    
+    function generateImageWithCanvas() {
+      html2canvas(tempContainer, {
+        backgroundColor: '#ffffff',
+        scale: 3, // 提高清晰度到3倍
+        useCORS: true,
+        allowTaint: true,
+        width: 800,
+        height: tempContainer.scrollHeight,
+        logging: false,
+        imageTimeout: 0,
+        removeContainer: true,
+        foreignObjectRendering: true,
+        // 优化字体渲染
+        onclone: function(clonedDoc) {
+          // 确保字体正确加载
+          const clonedContainer = clonedDoc.querySelector('div');
+          if (clonedContainer) {
+            clonedContainer.style.fontFamily = 'var(--font-default), -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif';
+            clonedContainer.style.fontSmoothing = 'antialiased';
+            clonedContainer.style.webkitFontSmoothing = 'antialiased';
+            clonedContainer.style.mozOsxFontSmoothing = 'grayscale';
+            clonedContainer.style.textRendering = 'optimizeLegibility';
+          }
+        }
+      }).then(canvas => {
+        // 下载图片
+        canvas.toBlob(function(blob) {
+          saveAs(blob, safeFileName(title) + '.png');
+        }, 'image/png');
+        
+        // 清理临时元素
+        document.body.removeChild(tempContainer);
+        
+        console.log('图片导出成功');
+        alert('✅ 图片导出成功！\n\n文件已保存为 PNG 格式\n可直接在微信中分享');
+      }).catch(error => {
+        console.error('图片导出失败:', error);
+        alert('❌ 图片导出失败，请重试');
+        document.body.removeChild(tempContainer);
+      });
+    }
 }
 
 // 微信优化HTML导出 - 简化版本，适合微信预览
