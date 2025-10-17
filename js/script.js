@@ -30,6 +30,10 @@ function render(){
   const src = document.getElementById('src').value.trim();
   const container = document.getElementById('preview');
   container.className = 'doc'; // reset classes
+  
+  // 自动识别大标题并填写到文档标题
+  autoDetectTitle(src);
+  
   // 主题与宽度
   const theme = document.getElementById('theme').value;
   if(theme==='serif') container.classList.add('serif');
@@ -39,8 +43,9 @@ function render(){
   const fontFamily = document.getElementById('fontFamily').value;
   if(fontFamily && fontFamily !== 'default') container.classList.add('font-' + fontFamily);
 
-  // 解析 Markdown
-  const html = marked.parse(src || '（在左侧粘贴内容，点击"生成预览"查看效果）');
+  // 解析 Markdown（移除大标题）
+  const processedSrc = removeMainTitle(src);
+  const html = marked.parse(processedSrc || '（在左侧粘贴内容，点击"生成预览"查看效果）');
 
   // 封面 & 目录
   const fm = document.getElementById('frontmatter').value;
@@ -93,6 +98,32 @@ function updateStats(){
 
 function escapeHtml(s){
   return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
+}
+
+// 自动识别大标题并填写到文档标题输入框
+function autoDetectTitle(src) {
+  if (!src) return;
+  
+  // 查找第一个一级标题（# 标题）
+  const titleMatch = src.match(/^#\s+(.+)$/m);
+  if (titleMatch) {
+    const detectedTitle = titleMatch[1].trim();
+    const titleInput = document.getElementById('docTitle');
+    
+    // 如果文档标题输入框为空，自动填写
+    if (!titleInput.value.trim()) {
+      titleInput.value = detectedTitle;
+      console.log('自动识别到标题:', detectedTitle);
+    }
+  }
+}
+
+// 移除正文中的大标题（第一个一级标题）
+function removeMainTitle(src) {
+  if (!src) return src;
+  
+  // 移除第一个一级标题（# 标题）
+  return src.replace(/^#\s+.+$/m, '').trim();
 }
 
 // 导出完整 HTML（带内联样式，所见即所得）
@@ -874,6 +905,7 @@ function showHelp() {
 
 **① 输入内容**
 - 在左侧文本框中粘贴或输入您的文档内容
+- **智能标题识别**：如果内容以 \`# 标题\` 开头，会自动识别并填写到"文档标题"输入框，正文中会移除该标题
 - 支持标准的 Markdown 语法：
   - \`# 一级标题\`、\`## 二级标题\`、\`### 三级标题\`
   - \`**加粗文本**\`、\`*斜体文本*\`
