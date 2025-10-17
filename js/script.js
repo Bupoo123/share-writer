@@ -794,19 +794,22 @@ function exportImage(){
   const waitForChartsAndExport = () => {
     const preview = document.getElementById('preview');
     if (checkChartsRendered(preview)) {
-      const title = document.getElementById('docTitle').value.trim() || '未命名分析';
-      
-      // 动态加载html2canvas库
-      if (typeof html2canvas === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-        script.onload = () => {
+      // 额外等待确保图表完全渲染
+      setTimeout(() => {
+        const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+        
+        // 动态加载html2canvas库
+        if (typeof html2canvas === 'undefined') {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+          script.onload = () => {
+            generateImage();
+          };
+          document.head.appendChild(script);
+        } else {
           generateImage();
-        };
-        document.head.appendChild(script);
-      } else {
-        generateImage();
-      }
+        }
+      }, 1000); // 额外等待1秒确保图表完全渲染
     } else {
       // 如果图表还没渲染完成，继续等待
       setTimeout(waitForChartsAndExport, 200);
@@ -836,17 +839,50 @@ function exportImage(){
     
     // 处理图表 - 将canvas转换为图片
     const charts = clonedContent.querySelectorAll('canvas');
+    console.log('找到图表数量:', charts.length);
+    
     charts.forEach((canvas, index) => {
       try {
-        const img = document.createElement('img');
-        img.src = canvas.toDataURL('image/png');
-        img.style.maxWidth = '100%';
-        img.style.height = 'auto';
-        img.alt = `图表 ${index + 1}`;
+        console.log('处理图表', index, ':', canvas);
         
-        const container = canvas.parentElement;
-        if (container) {
-          container.replaceChild(img, canvas);
+        // 检查canvas是否有内容
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const hasContent = imageData.data.some(pixel => pixel !== 0);
+        
+        console.log('图表', index, '是否有内容:', hasContent);
+        
+        if (hasContent) {
+          const img = document.createElement('img');
+          img.src = canvas.toDataURL('image/png');
+          img.style.maxWidth = '100%';
+          img.style.height = 'auto';
+          img.alt = `图表 ${index + 1}`;
+          
+          const container = canvas.parentElement;
+          if (container) {
+            container.replaceChild(img, canvas);
+          }
+          console.log('图表', index, '转换成功');
+        } else {
+          console.warn('图表', index, '内容为空，尝试使用备用方案');
+          
+          // 尝试从原始代码块获取JSON数据并创建简单图表
+          const codeBlock = canvas.closest('.json-chart')?.querySelector('pre code');
+          if (codeBlock) {
+            const codeText = codeBlock.textContent.trim();
+            const chartData = detectJsonChart(codeText);
+            if (chartData) {
+              const simpleChart = createSimpleChart(chartData);
+              if (simpleChart) {
+                const container = canvas.parentElement;
+                if (container) {
+                  container.replaceChild(simpleChart, canvas);
+                }
+                console.log('使用备用图表方案');
+              }
+            }
+          }
         }
       } catch (error) {
         console.warn('图表转换失败:', error);
