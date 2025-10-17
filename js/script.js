@@ -93,6 +93,11 @@ function render(){
   container.innerHTML = '';
   container.appendChild(frag);
   
+  // 处理JSON图表
+  setTimeout(() => {
+    processChartsInContainer(container);
+  }, 100);
+  
   // 更新统计信息
   updateStats();
 }
@@ -185,17 +190,27 @@ function renderJsonChart(chartData, container) {
 
 // 处理Markdown中的JSON图表
 function processJsonCharts(htmlContent) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlContent, 'text/html');
+  // 直接返回HTML内容，图表渲染将在DOM中处理
+  return htmlContent;
+}
+
+// 在容器中处理图表
+function processChartsInContainer(container) {
+  console.log('开始处理图表，Chart.js可用:', typeof Chart !== 'undefined');
   
   // 查找所有代码块
-  const codeBlocks = doc.querySelectorAll('pre code');
+  const codeBlocks = container.querySelectorAll('pre code');
+  console.log('找到代码块数量:', codeBlocks.length);
   
   codeBlocks.forEach((codeBlock, index) => {
     const codeText = codeBlock.textContent.trim();
+    console.log('检查代码块', index, ':', codeText.substring(0, 100) + '...');
+    
     const chartData = detectJsonChart(codeText);
     
     if (chartData) {
+      console.log('检测到图表数据:', chartData);
+      
       // 创建图表容器
       const chartContainer = document.createElement('div');
       chartContainer.className = 'json-chart';
@@ -224,18 +239,25 @@ function processJsonCharts(htmlContent) {
       // 延迟渲染图表，确保DOM已更新
       setTimeout(() => {
         try {
+          if (typeof Chart === 'undefined') {
+            console.error('Chart.js库未加载');
+            chartContainer.innerHTML = `<div style="color: red;">Chart.js库未加载，无法渲染图表</div><pre><code>${codeText}</code></pre>`;
+            return;
+          }
+          
           const ctx = canvas.getContext('2d');
-          new Chart(ctx, chartData);
+          const chart = new Chart(ctx, chartData);
+          console.log('图表渲染成功:', chart);
         } catch (error) {
           console.error('图表渲染失败:', error);
           // 如果图表渲染失败，显示原始代码
-          chartContainer.innerHTML = `<pre><code>${codeText}</code></pre>`;
+          chartContainer.innerHTML = `<div style="color: red;">图表渲染失败: ${error.message}</div><pre><code>${codeText}</code></pre>`;
         }
-      }, 100);
+      }, 200);
+    } else {
+      console.log('代码块', index, '不是有效的图表数据');
     }
   });
-  
-  return doc.body.innerHTML;
 }
 
 // 更新字数统计和页数统计
