@@ -54,7 +54,10 @@ function render(){
   const processedSrc = document.getElementById('src').value.trim();
   
   // 解析 Markdown
-  const html = marked.parse(processedSrc || '（在左侧粘贴内容，点击"生成预览"查看效果）');
+  let html = marked.parse(processedSrc || '（在左侧粘贴内容，点击"生成预览"查看效果）');
+  
+  // 处理JSON图表
+  html = processJsonCharts(html);
 
   // 封面 & 目录
   const fm = document.getElementById('frontmatter').value;
@@ -131,6 +134,110 @@ function removeTitleFromContent(content) {
   return result.join('\n');
 }
 
+// 检测JSON图表数据
+function detectJsonChart(content) {
+  if (!content) return null;
+  
+  try {
+    // 尝试解析JSON
+    const jsonData = JSON.parse(content);
+    
+    // 检查是否包含图表必需字段
+    if (jsonData.type && jsonData.data && jsonData.options) {
+      return jsonData;
+    }
+  } catch (e) {
+    // 不是有效的JSON，返回null
+    return null;
+  }
+  
+  return null;
+}
+
+// 渲染JSON图表
+function renderJsonChart(chartData, container) {
+  const canvas = document.createElement('canvas');
+  canvas.id = 'chart-' + Date.now();
+  canvas.style.maxWidth = '100%';
+  canvas.style.height = '400px';
+  
+  const chartContainer = document.createElement('div');
+  chartContainer.className = 'chart-container';
+  chartContainer.style.cssText = `
+    margin: 20px 0;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    text-align: center;
+  `;
+  
+  chartContainer.appendChild(canvas);
+  container.appendChild(chartContainer);
+  
+  // 创建图表
+  const ctx = canvas.getContext('2d');
+  const chart = new Chart(ctx, chartData);
+  
+  return chart;
+}
+
+// 处理Markdown中的JSON图表
+function processJsonCharts(htmlContent) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlContent, 'text/html');
+  
+  // 查找所有代码块
+  const codeBlocks = doc.querySelectorAll('pre code');
+  
+  codeBlocks.forEach((codeBlock, index) => {
+    const codeText = codeBlock.textContent.trim();
+    const chartData = detectJsonChart(codeText);
+    
+    if (chartData) {
+      // 创建图表容器
+      const chartContainer = document.createElement('div');
+      chartContainer.className = 'json-chart';
+      chartContainer.style.cssText = `
+        margin: 20px 0;
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        text-align: center;
+      `;
+      
+      // 创建画布
+      const canvas = document.createElement('canvas');
+      canvas.id = 'chart-' + Date.now() + '-' + index;
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = '400px';
+      
+      chartContainer.appendChild(canvas);
+      
+      // 替换代码块
+      const preElement = codeBlock.parentElement;
+      preElement.parentNode.replaceChild(chartContainer, preElement);
+      
+      // 延迟渲染图表，确保DOM已更新
+      setTimeout(() => {
+        try {
+          const ctx = canvas.getContext('2d');
+          new Chart(ctx, chartData);
+        } catch (error) {
+          console.error('图表渲染失败:', error);
+          // 如果图表渲染失败，显示原始代码
+          chartContainer.innerHTML = `<pre><code>${codeText}</code></pre>`;
+        }
+      }, 100);
+    }
+  });
+  
+  return doc.body.innerHTML;
+}
+
 // 更新字数统计和页数统计
 function updateStats(){
   const src = document.getElementById('src').value.trim();
@@ -151,6 +258,27 @@ function exportHTML(){
   render(); // 确保是最新预览
   const title = document.getElementById('docTitle').value.trim() || '未命名分析';
   const doc = document.getElementById('preview').cloneNode(true);
+  
+  // 处理图表导出 - 将canvas转换为图片
+  const charts = doc.querySelectorAll('canvas');
+  charts.forEach((canvas, index) => {
+    try {
+      // 将canvas转换为图片
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+      img.alt = `图表 ${index + 1}`;
+      
+      // 替换canvas
+      const container = canvas.parentElement;
+      if (container) {
+        container.replaceChild(img, canvas);
+      }
+    } catch (error) {
+      console.warn('图表转换失败:', error);
+    }
+  });
   
   // 获取所有样式表的内容
   let css = '';
@@ -443,6 +571,26 @@ function exportImage(){
     
     // 复制预览内容
     const clonedContent = previewElement.cloneNode(true);
+    
+    // 处理图表 - 将canvas转换为图片
+    const charts = clonedContent.querySelectorAll('canvas');
+    charts.forEach((canvas, index) => {
+      try {
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/png');
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        img.alt = `图表 ${index + 1}`;
+        
+        const container = canvas.parentElement;
+        if (container) {
+          container.replaceChild(img, canvas);
+        }
+      } catch (error) {
+        console.warn('图表转换失败:', error);
+      }
+    });
+    
     tempContainer.appendChild(clonedContent);
     document.body.appendChild(tempContainer);
     
@@ -882,12 +1030,14 @@ function showHelp() {
 **① 输入内容**
 - 在左侧文本框中粘贴或输入您的文档内容
 - **智能标题识别**：自动识别第一个 \`# 标题\` 并填写到"文档标题"框
+- **JSON图表支持**：自动识别JSON格式的图表数据并渲染为可视化图表
 - 支持标准的 Markdown 语法：
   - \`# 一级标题\`、\`## 二级标题\`、\`### 三级标题\`
   - \`**加粗文本**\`、\`*斜体文本*\`
   - \`- 列表项\` 或 \`1. 有序列表\`
   - \`> 引用内容\`
   - \`\` \`行内代码\` \`\` 和代码块
+  - **JSON图表**：在代码块中粘贴Chart.js格式的JSON数据
 
 **② 实时预览**
 - 右侧区域会实时显示格式化后的效果
@@ -958,6 +1108,38 @@ function showHelp() {
 2. **列表清晰** - 使用无序列表展示要点，有序列表展示步骤
 3. **代码高亮** - 使用代码块来展示程序代码或配置信息
 4. **引用强调** - 使用引用块来突出重要观点或他人言论
+5. **数据可视化** - 使用JSON图表展示数据，支持饼图、柱状图、折线图等
+
+### JSON图表使用
+在代码块中粘贴Chart.js格式的JSON数据，系统会自动渲染为图表：
+
+\`\`\`json
+{
+  "type": "pie",
+  "data": {
+    "labels": ["中国", "澳大利亚", "美国", "越南", "其他"],
+    "datasets": [{
+      "data": [99, 0.5, 0.3, 0.1, 0.1],
+      "backgroundColor": ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD"]
+    }]
+  },
+  "options": {
+    "responsive": true,
+    "plugins": {
+      "title": {
+        "display": true,
+        "text": "全球重稀土供应占比（2024-2025）"
+      }
+    }
+  }
+}
+\`\`\`
+
+支持的图表类型：
+- **饼图** (pie) - 适合展示占比数据
+- **柱状图** (bar) - 适合对比数据
+- **折线图** (line) - 适合趋势分析
+- **散点图** (scatter) - 适合相关性分析
 
 ### 快捷键
 - \`Ctrl + Enter\` - 快速刷新预览
@@ -1145,7 +1327,41 @@ document.getElementById('src').value =
 ## 重点方向
 1. 公卫监测（多病原/AMR/院感）
 2. 医政高质量发展（DRG/DIP 适配）
-3. 心脑血管专病网络（胸痛/卒中中心）`;
+3. 心脑血管专病网络（胸痛/卒中中心）
+
+## 数据展示
+以下是全球重稀土供应占比的饼图：
+
+\`\`\`json
+{
+  "type": "pie",
+  "data": {
+    "labels": ["中国", "澳大利亚", "美国", "越南", "其他"],
+    "datasets": [{
+      "data": [99, 0.5, 0.3, 0.1, 0.1],
+      "backgroundColor": ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD"],
+      "borderColor": ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF"],
+      "borderWidth": 1
+    }]
+  },
+  "options": {
+    "responsive": true,
+    "plugins": {
+      "legend": {
+        "position": "top",
+        "labels": {
+          "color": "#333333"
+        }
+      },
+      "title": {
+        "display": true,
+        "text": "全球重稀土供应占比（2024-2025）",
+        "color": "#333333"
+      }
+    }
+  }
+}
+\`\`\``;
 
 // 触发自动标题识别
 const initialSrc = document.getElementById('src').value.trim();
