@@ -387,13 +387,13 @@ function exportImage(){
       width: 800px;
       background: white;
       padding: 40px;
-      font-family: var(--font-default);
-      font-smoothing: antialiased;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #333;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
-      font-feature-settings: "kern" 1;
-      font-kerning: normal;
     `;
     
     // 复制预览内容
@@ -408,15 +408,8 @@ function exportImage(){
     }
     
     // 等待字体加载完成
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => {
-        setTimeout(() => generateImageWithCanvas(), 100);
-      });
-    } else {
-      setTimeout(() => generateImageWithCanvas(), 500);
-    }
-    
-    function generateImageWithCanvas() {
+    setTimeout(() => {
+      // 生成图片
       html2canvas(tempContainer, {
         backgroundColor: '#ffffff',
         scale: 3, // 提高清晰度到3倍
@@ -424,21 +417,24 @@ function exportImage(){
         allowTaint: true,
         width: 800,
         height: tempContainer.scrollHeight,
-        logging: false,
-        imageTimeout: 0,
-        removeContainer: true,
-        foreignObjectRendering: true,
-        // 优化字体渲染
+        letterRendering: true, // 启用字母渲染优化
+        foreignObjectRendering: true, // 启用外部对象渲染
+        logging: false, // 关闭日志
         onclone: function(clonedDoc) {
-          // 确保字体正确加载
-          const clonedContainer = clonedDoc.querySelector('div');
-          if (clonedContainer) {
-            clonedContainer.style.fontFamily = 'var(--font-default), -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif';
-            clonedContainer.style.fontSmoothing = 'antialiased';
-            clonedContainer.style.webkitFontSmoothing = 'antialiased';
-            clonedContainer.style.mozOsxFontSmoothing = 'grayscale';
-            clonedContainer.style.textRendering = 'optimizeLegibility';
-          }
+          // 在克隆的文档中优化字体渲染
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            * {
+              -webkit-font-smoothing: antialiased !important;
+              -moz-osx-font-smoothing: grayscale !important;
+              text-rendering: optimizeLegibility !important;
+              font-feature-settings: "kern" 1 !important;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
         }
       }).then(canvas => {
         // 下载图片
@@ -456,7 +452,8 @@ function exportImage(){
         alert('❌ 图片导出失败，请重试');
         document.body.removeChild(tempContainer);
       });
-    }
+    }, 100); // 等待100ms确保字体加载完成
+  }
 }
 
 // 微信优化HTML导出 - 简化版本，适合微信预览
