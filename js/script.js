@@ -30,10 +30,6 @@ function render(){
   const src = document.getElementById('src').value.trim();
   const container = document.getElementById('preview');
   container.className = 'doc'; // reset classes
-  
-  // 自动识别大标题并填写到文档标题
-  autoDetectTitle(src);
-  
   // 主题与宽度
   const theme = document.getElementById('theme').value;
   if(theme==='serif') container.classList.add('serif');
@@ -43,8 +39,21 @@ function render(){
   const fontFamily = document.getElementById('fontFamily').value;
   if(fontFamily && fontFamily !== 'default') container.classList.add('font-' + fontFamily);
 
-  // 解析 Markdown（移除大标题）
-  const processedSrc = removeMainTitle(src);
+  // 自动识别并提取标题
+  const detectedTitle = extractTitleFromMarkdown(src);
+  if (detectedTitle) {
+    // 自动填写到文档标题输入框
+    document.getElementById('docTitle').value = detectedTitle;
+    // 从内容中移除大标题
+    const contentWithoutTitle = removeTitleFromContent(src);
+    // 更新文本区域内容
+    document.getElementById('src').value = contentWithoutTitle;
+  }
+
+  // 使用处理后的内容（移除标题后的内容）
+  const processedSrc = document.getElementById('src').value.trim();
+  
+  // 解析 Markdown
   const html = marked.parse(processedSrc || '（在左侧粘贴内容，点击"生成预览"查看效果）');
 
   // 封面 & 目录
@@ -85,6 +94,43 @@ function render(){
   updateStats();
 }
 
+// 自动识别并提取Markdown大标题
+function extractTitleFromMarkdown(content) {
+  if (!content) return null;
+  
+  // 查找第一个一级标题 (# 标题)
+  const lines = content.split('\n');
+  for (let line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.startsWith('# ') && trimmedLine.length > 2) {
+      // 提取标题文本，去掉 # 和前后空格
+      return trimmedLine.substring(2).trim();
+    }
+  }
+  return null;
+}
+
+// 从内容中移除大标题
+function removeTitleFromContent(content) {
+  if (!content) return content;
+  
+  const lines = content.split('\n');
+  const result = [];
+  let titleRemoved = false;
+  
+  for (let line of lines) {
+    const trimmedLine = line.trim();
+    // 如果是第一个一级标题且还没有移除过标题，则跳过这一行
+    if (!titleRemoved && trimmedLine.startsWith('# ') && trimmedLine.length > 2) {
+      titleRemoved = true;
+      continue; // 跳过这个标题行
+    }
+    result.push(line);
+  }
+  
+  return result.join('\n');
+}
+
 // 更新字数统计和页数统计
 function updateStats(){
   const src = document.getElementById('src').value.trim();
@@ -100,43 +146,10 @@ function escapeHtml(s){
   return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
 }
 
-// 自动识别大标题并填写到文档标题输入框
-function autoDetectTitle(src) {
-  if (!src) return;
-  
-  // 查找第一个一级标题（# 标题）
-  const titleMatch = src.match(/^#\s+(.+)$/m);
-  if (titleMatch) {
-    const detectedTitle = titleMatch[1].trim();
-    const titleInput = document.getElementById('docTitle');
-    
-    // 如果文档标题输入框为空，自动填写
-    if (!titleInput.value.trim()) {
-      titleInput.value = detectedTitle;
-      console.log('自动识别到标题:', detectedTitle);
-    }
-  }
-}
-
-// 移除正文中的大标题（第一个一级标题）
-function removeMainTitle(src) {
-  if (!src) return src;
-  
-  // 移除第一个一级标题（# 标题）
-  return src.replace(/^#\s+.+$/m, '').trim();
-}
-
 // 导出完整 HTML（带内联样式，所见即所得）
 function exportHTML(){
   render(); // 确保是最新预览
   const title = document.getElementById('docTitle').value.trim() || '未命名分析';
-  
-  // 检查必要的库是否可用
-  if (typeof saveAs === 'undefined') {
-    alert('❌ FileSaver.js库未加载，请刷新页面重试');
-    return;
-  }
-  
   const doc = document.getElementById('preview').cloneNode(true);
   
   // 获取所有样式表的内容
@@ -401,21 +414,12 @@ function exportImage(){
   render(); // 确保是最新预览
   const title = document.getElementById('docTitle').value.trim() || '未命名分析';
   
-  // 检查必要的库是否可用
-  if (typeof saveAs === 'undefined') {
-    alert('❌ FileSaver.js库未加载，请刷新页面重试');
-    return;
-  }
-  
   // 动态加载html2canvas库
   if (typeof html2canvas === 'undefined') {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
     script.onload = () => {
       generateImage();
-    };
-    script.onerror = () => {
-      alert('❌ html2canvas库加载失败，请检查网络连接');
     };
     document.head.appendChild(script);
   } else {
@@ -434,13 +438,7 @@ function exportImage(){
       width: 800px;
       background: white;
       padding: 40px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
-      font-size: 16px;
-      line-height: 1.6;
-      color: #333;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      text-rendering: optimizeLegibility;
+      font-family: var(--font-default);
     `;
     
     // 复制预览内容
@@ -454,52 +452,30 @@ function exportImage(){
       clonedContent.classList.add('font-' + fontFamily);
     }
     
-    // 等待字体加载完成
-    setTimeout(() => {
-      // 生成图片
-      html2canvas(tempContainer, {
-        backgroundColor: '#ffffff',
-        scale: 3, // 提高清晰度到3倍
-        useCORS: true,
-        allowTaint: true,
-        width: 800,
-        height: tempContainer.scrollHeight,
-        letterRendering: true, // 启用字母渲染优化
-        foreignObjectRendering: true, // 启用外部对象渲染
-        logging: false, // 关闭日志
-        onclone: function(clonedDoc) {
-          // 在克隆的文档中优化字体渲染
-          const style = clonedDoc.createElement('style');
-          style.textContent = `
-            * {
-              -webkit-font-smoothing: antialiased !important;
-              -moz-osx-font-smoothing: grayscale !important;
-              text-rendering: optimizeLegibility !important;
-              font-feature-settings: "kern" 1 !important;
-            }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
-            }
-          `;
-          clonedDoc.head.appendChild(style);
-        }
-      }).then(canvas => {
-        // 下载图片
-        canvas.toBlob(function(blob) {
-          saveAs(blob, safeFileName(title) + '.png');
-        }, 'image/png');
-        
-        // 清理临时元素
-        document.body.removeChild(tempContainer);
-        
-        console.log('图片导出成功');
-        alert('✅ 图片导出成功！\n\n文件已保存为 PNG 格式\n可直接在微信中分享');
-      }).catch(error => {
-        console.error('图片导出失败:', error);
-        alert('❌ 图片导出失败，请重试\n\n如果问题持续，请尝试使用"微信版HTML"导出');
-        document.body.removeChild(tempContainer);
-      });
-    }, 100); // 等待100ms确保字体加载完成
+    // 生成图片
+    html2canvas(tempContainer, {
+      backgroundColor: '#ffffff',
+      scale: 2, // 提高清晰度
+      useCORS: true,
+      allowTaint: true,
+      width: 800,
+      height: tempContainer.scrollHeight
+    }).then(canvas => {
+      // 下载图片
+      canvas.toBlob(function(blob) {
+        saveAs(blob, safeFileName(title) + '.png');
+      }, 'image/png');
+      
+      // 清理临时元素
+      document.body.removeChild(tempContainer);
+      
+      console.log('图片导出成功');
+      alert('✅ 图片导出成功！\n\n文件已保存为 PNG 格式\n可直接在微信中分享');
+    }).catch(error => {
+      console.error('图片导出失败:', error);
+      alert('❌ 图片导出失败，请重试');
+      document.body.removeChild(tempContainer);
+    });
   }
 }
 
@@ -905,7 +881,7 @@ function showHelp() {
 
 **① 输入内容**
 - 在左侧文本框中粘贴或输入您的文档内容
-- **智能标题识别**：如果内容以 \`# 标题\` 开头，会自动识别并填写到"文档标题"输入框，正文中会移除该标题
+- **智能标题识别**：自动识别第一个 \`# 标题\` 并填写到"文档标题"框
 - 支持标准的 Markdown 语法：
   - \`# 一级标题\`、\`## 二级标题\`、\`### 三级标题\`
   - \`**加粗文本**\`、\`*斜体文本*\`
@@ -1139,7 +1115,22 @@ document.getElementById('docAuthor').addEventListener('input',render);
 document.getElementById('src').addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); render(); }
 });
-document.getElementById('src').addEventListener('input',updateStats);
+document.getElementById('src').addEventListener('input',function(){
+  updateStats();
+  // 自动处理标题识别
+  const src = this.value.trim();
+  const detectedTitle = extractTitleFromMarkdown(src);
+  if (detectedTitle) {
+    // 自动填写到文档标题输入框
+    document.getElementById('docTitle').value = detectedTitle;
+    // 从内容中移除大标题
+    const contentWithoutTitle = removeTitleFromContent(src);
+    // 更新文本区域内容（避免无限循环）
+    if (contentWithoutTitle !== src) {
+      this.value = contentWithoutTitle;
+    }
+  }
+});
 
 // 初始示例
 document.getElementById('src').value =
@@ -1155,4 +1146,14 @@ document.getElementById('src').value =
 1. 公卫监测（多病原/AMR/院感）
 2. 医政高质量发展（DRG/DIP 适配）
 3. 心脑血管专病网络（胸痛/卒中中心）`;
+
+// 触发自动标题识别
+const initialSrc = document.getElementById('src').value.trim();
+const detectedTitle = extractTitleFromMarkdown(initialSrc);
+if (detectedTitle) {
+  document.getElementById('docTitle').value = detectedTitle;
+  const contentWithoutTitle = removeTitleFromContent(initialSrc);
+  document.getElementById('src').value = contentWithoutTitle;
+}
+
 render();
