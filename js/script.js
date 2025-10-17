@@ -192,30 +192,101 @@ function createSimpleChart(chartData, container) {
       chartContainer.appendChild(title);
     }
     
-    // 创建饼图
+    // 创建简单的饼图可视化
     const pieContainer = document.createElement('div');
-    pieContainer.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; gap: 20px;';
+    pieContainer.style.cssText = 'display: flex; justify-content: center; margin: 20px 0;';
+    
+    // 创建饼图SVG
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '200');
+    svg.setAttribute('height', '200');
+    svg.style.cssText = 'border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
+    
+    let currentAngle = 0;
+    const radius = 80;
+    const centerX = 100;
+    const centerY = 100;
+    
+    data.forEach((value, index) => {
+      const percentage = (value / total) * 100;
+      const angle = (percentage / 100) * 360;
+      
+      if (angle > 0) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const startAngle = currentAngle;
+        const endAngle = currentAngle + angle;
+        
+        const x1 = centerX + radius * Math.cos((startAngle - 90) * Math.PI / 180);
+        const y1 = centerY + radius * Math.sin((startAngle - 90) * Math.PI / 180);
+        const x2 = centerX + radius * Math.cos((endAngle - 90) * Math.PI / 180);
+        const y2 = centerY + radius * Math.sin((endAngle - 90) * Math.PI / 180);
+        
+        const largeArcFlag = angle > 180 ? 1 : 0;
+        const pathData = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+        
+        path.setAttribute('d', pathData);
+        path.setAttribute('fill', colors[index]);
+        path.setAttribute('stroke', '#fff');
+        path.setAttribute('stroke-width', '2');
+        
+        svg.appendChild(path);
+        currentAngle += angle;
+      }
+    });
+    
+    pieContainer.appendChild(svg);
+    chartContainer.appendChild(pieContainer);
     
     // 创建图例
     const legend = document.createElement('div');
-    legend.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px;';
+    legend.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 20px;';
     
     labels.forEach((label, index) => {
       const percentage = ((data[index] / total) * 100).toFixed(1);
       
       // 创建图例项
       const legendItem = document.createElement('div');
-      legendItem.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+      legendItem.style.cssText = `
+        display: flex; 
+        align-items: center; 
+        gap: 10px; 
+        padding: 8px 12px;
+        background: #f8fafc;
+        border-radius: 8px;
+        border-left: 4px solid ${colors[index]};
+        transition: transform 0.2s ease;
+      `;
+      
+      // 添加悬停效果
+      legendItem.onmouseover = () => {
+        legendItem.style.transform = 'translateX(4px)';
+        legendItem.style.background = '#f1f5f9';
+      };
+      legendItem.onmouseout = () => {
+        legendItem.style.transform = 'translateX(0)';
+        legendItem.style.background = '#f8fafc';
+      };
       
       const colorBox = document.createElement('div');
-      colorBox.style.cssText = `width: 16px; height: 16px; background-color: ${colors[index]}; border-radius: 3px;`;
+      colorBox.style.cssText = `
+        width: 20px; 
+        height: 20px; 
+        background-color: ${colors[index]}; 
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      `;
       
       const labelText = document.createElement('span');
-      labelText.textContent = `${label}: ${data[index]} (${percentage}%)`;
-      labelText.style.cssText = 'font-size: 14px; color: #333;';
+      labelText.textContent = `${label}`;
+      labelText.style.cssText = 'font-size: 14px; color: #333; font-weight: 500; flex: 1;';
+      
+      const valueText = document.createElement('span');
+      valueText.textContent = `${data[index]} (${percentage}%)`;
+      valueText.style.cssText = 'font-size: 12px; color: #666; font-weight: 400;';
       
       legendItem.appendChild(colorBox);
       legendItem.appendChild(labelText);
+      legendItem.appendChild(valueText);
       legend.appendChild(legendItem);
     });
     
@@ -223,8 +294,11 @@ function createSimpleChart(chartData, container) {
     
     // 添加说明文字
     const note = document.createElement('div');
-    note.textContent = '📊 简单图表预览（Chart.js库未加载）';
-    note.style.cssText = 'margin-top: 15px; font-size: 12px; color: #666; font-style: italic;';
+    note.innerHTML = `
+      <div style="margin-top: 15px; padding: 8px 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; font-size: 12px; color: #0369a1;">
+        📊 图表预览模式 - 数据可视化已优化显示
+      </div>
+    `;
     chartContainer.appendChild(note);
     
     return chartContainer;
