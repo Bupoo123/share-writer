@@ -99,6 +99,13 @@ function escapeHtml(s){
 function exportHTML(){
   render(); // 确保是最新预览
   const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+  
+  // 检查必要的库是否可用
+  if (typeof saveAs === 'undefined') {
+    alert('❌ FileSaver.js库未加载，请刷新页面重试');
+    return;
+  }
+  
   const doc = document.getElementById('preview').cloneNode(true);
   
   // 获取所有样式表的内容
@@ -363,12 +370,21 @@ function exportImage(){
   render(); // 确保是最新预览
   const title = document.getElementById('docTitle').value.trim() || '未命名分析';
   
+  // 检查必要的库是否可用
+  if (typeof saveAs === 'undefined') {
+    alert('❌ FileSaver.js库未加载，请刷新页面重试');
+    return;
+  }
+  
   // 动态加载html2canvas库
   if (typeof html2canvas === 'undefined') {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
     script.onload = () => {
       generateImage();
+    };
+    script.onerror = () => {
+      alert('❌ html2canvas库加载失败，请检查网络连接');
     };
     document.head.appendChild(script);
   } else {
@@ -449,7 +465,7 @@ function exportImage(){
         alert('✅ 图片导出成功！\n\n文件已保存为 PNG 格式\n可直接在微信中分享');
       }).catch(error => {
         console.error('图片导出失败:', error);
-        alert('❌ 图片导出失败，请重试');
+        alert('❌ 图片导出失败，请重试\n\n如果问题持续，请尝试使用"微信版HTML"导出');
         document.body.removeChild(tempContainer);
       });
     }, 100); // 等待100ms确保字体加载完成
