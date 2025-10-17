@@ -461,30 +461,54 @@ function escapeHtml(s){
 // 导出完整 HTML（带内联样式，所见即所得）
 function exportHTML(){
   render(); // 确保是最新预览
-  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
-  const doc = document.getElementById('preview').cloneNode(true);
   
-  // 处理图表导出 - 将canvas转换为图片
-  const charts = doc.querySelectorAll('canvas');
-  charts.forEach((canvas, index) => {
-    try {
-      // 将canvas转换为图片
-      const img = document.createElement('img');
-      img.src = canvas.toDataURL('image/png');
-      img.style.maxWidth = '100%';
-      img.style.height = 'auto';
-      img.alt = `图表 ${index + 1}`;
+  // 等待图表渲染完成
+  const waitForCharts = () => {
+    const preview = document.getElementById('preview');
+    if (checkChartsRendered(preview)) {
+      const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+      const doc = preview.cloneNode(true);
       
-      // 替换canvas
-      const container = canvas.parentElement;
-      if (container) {
-        container.replaceChild(img, canvas);
-      }
-    } catch (error) {
-      console.warn('图表转换失败:', error);
+      // 处理图表导出 - 将canvas转换为图片
+      const charts = doc.querySelectorAll('canvas');
+      charts.forEach((canvas, index) => {
+        try {
+          // 将canvas转换为图片
+          const img = document.createElement('img');
+          img.src = canvas.toDataURL('image/png');
+          img.style.maxWidth = '100%';
+          img.style.height = 'auto';
+          img.alt = `图表 ${index + 1}`;
+          
+          // 替换canvas
+          const container = canvas.parentElement;
+          if (container) {
+            container.replaceChild(img, canvas);
+          }
+        } catch (error) {
+          console.warn('图表转换失败:', error);
+        }
+      });
+      
+      // 继续HTML导出逻辑
+      continueHTMLExport(doc, title);
+    } else {
+      // 如果图表还没渲染完成，继续等待
+      setTimeout(waitForCharts, 200);
     }
-  });
+  };
   
+  setTimeout(waitForCharts, 500); // 初始等待500ms
+}
+
+// 检查图表是否已渲染完成
+function checkChartsRendered(container) {
+  const charts = container.querySelectorAll('canvas, .simple-chart');
+  return charts.length > 0;
+}
+
+// 继续HTML导出的逻辑
+function continueHTMLExport(doc, title) {
   // 获取所有样式表的内容
   let css = '';
   const styleSheets = document.styleSheets;
@@ -533,6 +557,9 @@ function exportHTML(){
       .doc.font-kaiti{font-family:var(--font-kaiti)}
       .doc.font-heiti{font-family:var(--font-heiti)}
       .doc.font-fangsong{font-family:var(--font-fangsong)}
+      .simple-chart{margin:20px 0;padding:20px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);text-align:center}
+      .simple-chart h3{margin:0 0 20px 0;color:#333;font-size:18px}
+      .simple-chart svg{border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
     `;
   }
   
@@ -745,19 +772,31 @@ function safeFileName(name){
 // 图片导出功能 - 使用html2canvas生成图片
 function exportImage(){
   render(); // 确保是最新预览
-  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
   
-  // 动态加载html2canvas库
-  if (typeof html2canvas === 'undefined') {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-    script.onload = () => {
-      generateImage();
-    };
-    document.head.appendChild(script);
-  } else {
-    generateImage();
-  }
+  // 等待图表渲染完成
+  const waitForChartsAndExport = () => {
+    const preview = document.getElementById('preview');
+    if (checkChartsRendered(preview)) {
+      const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+      
+      // 动态加载html2canvas库
+      if (typeof html2canvas === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = () => {
+          generateImage();
+        };
+        document.head.appendChild(script);
+      } else {
+        generateImage();
+      }
+    } else {
+      // 如果图表还没渲染完成，继续等待
+      setTimeout(waitForChartsAndExport, 200);
+    }
+  };
+  
+  setTimeout(waitForChartsAndExport, 500); // 初始等待500ms
   
   function generateImage() {
     const previewElement = document.getElementById('preview');
