@@ -148,11 +148,13 @@ function detectJsonChart(content) {
     const jsonData = JSON.parse(content);
     
     // 检查是否包含图表必需字段
-    if (jsonData.type && jsonData.data && jsonData.options) {
+    if (jsonData.type && jsonData.data) {
+      console.log('检测到有效的图表数据:', jsonData.type);
       return jsonData;
     }
   } catch (e) {
     // 不是有效的JSON，返回null
+    console.log('JSON解析失败:', e.message);
     return null;
   }
   
@@ -197,6 +199,15 @@ function processJsonCharts(htmlContent) {
 // 在容器中处理图表
 function processChartsInContainer(container) {
   console.log('开始处理图表，Chart.js可用:', typeof Chart !== 'undefined');
+  
+  // 如果Chart.js未加载，等待一下再试
+  if (typeof Chart === 'undefined') {
+    console.log('Chart.js未加载，等待加载...');
+    setTimeout(() => {
+      processChartsInContainer(container);
+    }, 500);
+    return;
+  }
   
   // 查找所有代码块
   const codeBlocks = container.querySelectorAll('pre code');
