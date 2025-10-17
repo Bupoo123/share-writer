@@ -30,6 +30,10 @@ function render(){
   const src = document.getElementById('src').value.trim();
   const container = document.getElementById('preview');
   container.className = 'doc'; // reset classes
+  
+  // 清理图表处理状态
+  chartsProcessed.clear();
+  
   // 主题与宽度
   const theme = document.getElementById('theme').value;
   if(theme==='serif') container.classList.add('serif');
@@ -346,6 +350,9 @@ function processJsonCharts(htmlContent) {
 let chartRetryCount = 0;
 const MAX_CHART_RETRIES = 3;
 
+// 图表处理状态跟踪
+let chartsProcessed = new Set();
+
 // 在容器中处理图表
 function processChartsInContainer(container) {
   console.log('开始处理图表，Chart.js可用:', typeof Chart !== 'undefined');
@@ -389,10 +396,20 @@ function processChartsInContainer(container) {
     const codeText = codeBlock.textContent.trim();
     console.log('检查代码块', index, ':', codeText.substring(0, 100) + '...');
     
+    // 检查是否已经处理过这个代码块
+    const codeHash = codeText.substring(0, 50); // 使用前50个字符作为标识
+    if (chartsProcessed.has(codeHash)) {
+      console.log('代码块已处理过，跳过');
+      return;
+    }
+    
     const chartData = detectJsonChart(codeText);
     
     if (chartData) {
       console.log('检测到图表数据:', chartData);
+      
+      // 标记为已处理
+      chartsProcessed.add(codeHash);
       
       // 创建图表容器
       const chartContainer = document.createElement('div');
@@ -800,6 +817,7 @@ function exportImage(){
   
   function generateImage() {
     const previewElement = document.getElementById('preview');
+    const title = document.getElementById('docTitle').value.trim() || '未命名分析';
     
     // 创建临时容器，优化图片质量
     const tempContainer = document.createElement('div');
