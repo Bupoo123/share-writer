@@ -161,6 +161,78 @@ function detectJsonChart(content) {
   return null;
 }
 
+// 创建简单的HTML图表（备用方案）
+function createSimpleChart(chartData, container) {
+  const chartContainer = document.createElement('div');
+  chartContainer.className = 'simple-chart';
+  chartContainer.style.cssText = `
+    margin: 20px 0;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    text-align: center;
+  `;
+  
+  if (chartData.type === 'pie' && chartData.data && chartData.data.labels && chartData.data.datasets) {
+    const dataset = chartData.data.datasets[0];
+    const labels = chartData.data.labels;
+    const data = dataset.data;
+    const colors = dataset.backgroundColor || ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
+    
+    // 计算总数
+    const total = data.reduce((sum, value) => sum + value, 0);
+    
+    // 创建饼图标题
+    if (chartData.options && chartData.options.plugins && chartData.options.plugins.title) {
+      const title = document.createElement('h3');
+      title.textContent = chartData.options.plugins.title.text;
+      title.style.cssText = 'margin: 0 0 20px 0; color: #333; font-size: 18px;';
+      chartContainer.appendChild(title);
+    }
+    
+    // 创建饼图
+    const pieContainer = document.createElement('div');
+    pieContainer.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; gap: 20px;';
+    
+    // 创建图例
+    const legend = document.createElement('div');
+    legend.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px;';
+    
+    labels.forEach((label, index) => {
+      const percentage = ((data[index] / total) * 100).toFixed(1);
+      
+      // 创建图例项
+      const legendItem = document.createElement('div');
+      legendItem.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+      
+      const colorBox = document.createElement('div');
+      colorBox.style.cssText = `width: 16px; height: 16px; background-color: ${colors[index]}; border-radius: 3px;`;
+      
+      const labelText = document.createElement('span');
+      labelText.textContent = `${label}: ${data[index]} (${percentage}%)`;
+      labelText.style.cssText = 'font-size: 14px; color: #333;';
+      
+      legendItem.appendChild(colorBox);
+      legendItem.appendChild(labelText);
+      legend.appendChild(legendItem);
+    });
+    
+    chartContainer.appendChild(legend);
+    
+    // 添加说明文字
+    const note = document.createElement('div');
+    note.textContent = '📊 简单图表预览（Chart.js库未加载）';
+    note.style.cssText = 'margin-top: 15px; font-size: 12px; color: #666; font-style: italic;';
+    chartContainer.appendChild(note);
+    
+    return chartContainer;
+  }
+  
+  return null;
+}
+
 // 渲染JSON图表
 function renderJsonChart(chartData, container) {
   const canvas = document.createElement('canvas');
@@ -196,18 +268,44 @@ function processJsonCharts(htmlContent) {
   return htmlContent;
 }
 
+// 图表处理重试计数器
+let chartRetryCount = 0;
+const MAX_CHART_RETRIES = 3;
+
 // 在容器中处理图表
 function processChartsInContainer(container) {
   console.log('开始处理图表，Chart.js可用:', typeof Chart !== 'undefined');
   
-  // 如果Chart.js未加载，等待一下再试
+  // 如果Chart.js未加载，等待一下再试（最多重试3次）
   if (typeof Chart === 'undefined') {
-    console.log('Chart.js未加载，等待加载...');
-    setTimeout(() => {
-      processChartsInContainer(container);
-    }, 500);
-    return;
+    if (chartRetryCount < MAX_CHART_RETRIES) {
+      chartRetryCount++;
+      console.log(`Chart.js未加载，等待加载... (重试 ${chartRetryCount}/${MAX_CHART_RETRIES})`);
+      setTimeout(() => {
+        processChartsInContainer(container);
+      }, 1000);
+      return;
+    } else {
+      console.error('Chart.js库加载失败，使用备用方案');
+      // 使用简单的HTML图表作为备用方案
+      const codeBlocks = container.querySelectorAll('pre code');
+      codeBlocks.forEach((codeBlock) => {
+        const codeText = codeBlock.textContent.trim();
+        const chartData = detectJsonChart(codeText);
+        if (chartData) {
+          const simpleChart = createSimpleChart(chartData);
+          if (simpleChart) {
+            const preElement = codeBlock.parentElement;
+            preElement.parentNode.replaceChild(simpleChart, preElement);
+          }
+        }
+      });
+      return;
+    }
   }
+  
+  // 重置重试计数器
+  chartRetryCount = 0;
   
   // 查找所有代码块
   const codeBlocks = container.querySelectorAll('pre code');
