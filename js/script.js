@@ -788,39 +788,56 @@ function safeFileName(name){
 
 // 图片导出功能 - 使用html2canvas生成图片
 function exportImage(){
+  console.log('开始图片导出...');
   render(); // 确保是最新预览
   
   // 等待图表渲染完成
   const waitForChartsAndExport = () => {
+    console.log('检查图表渲染状态...');
     const preview = document.getElementById('preview');
     if (checkChartsRendered(preview)) {
+      console.log('图表已渲染，开始导出...');
       // 额外等待确保图表完全渲染
       setTimeout(() => {
         const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+        console.log('准备生成图片，标题:', title);
         
         // 动态加载html2canvas库
         if (typeof html2canvas === 'undefined') {
+          console.log('html2canvas未加载，开始加载...');
           const script = document.createElement('script');
           script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
           script.onload = () => {
+            console.log('html2canvas加载完成，开始生成图片');
             generateImage();
+          };
+          script.onerror = () => {
+            console.error('html2canvas加载失败');
+            alert('❌ 图片导出库加载失败，请重试');
           };
           document.head.appendChild(script);
         } else {
+          console.log('html2canvas已加载，开始生成图片');
           generateImage();
         }
       }, 1000); // 额外等待1秒确保图表完全渲染
     } else {
+      console.log('图表未渲染完成，继续等待...');
       // 如果图表还没渲染完成，继续等待
       setTimeout(waitForChartsAndExport, 200);
     }
   };
   
   setTimeout(waitForChartsAndExport, 500); // 初始等待500ms
-  
-  function generateImage() {
+}
+
+// 生成图片的函数
+function generateImage() {
+    console.log('开始生成图片...');
     const previewElement = document.getElementById('preview');
     const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+    console.log('预览元素:', previewElement);
+    console.log('文档标题:', title);
     
     // 创建临时容器，优化图片质量
     const tempContainer = document.createElement('div');
@@ -922,7 +939,6 @@ function exportImage(){
       alert('❌ 图片导出失败，请重试');
       document.body.removeChild(tempContainer);
     });
-  }
 }
 
 // 微信优化HTML导出 - 简化版本，适合微信预览
