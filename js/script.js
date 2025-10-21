@@ -521,7 +521,39 @@ function exportHTML(){
 // 检查图表是否已渲染完成
 function checkChartsRendered(container) {
   const charts = container.querySelectorAll('canvas, .simple-chart');
-  return charts.length > 0;
+  console.log('找到图表元素数量:', charts.length);
+  
+  // 如果有图表元素，检查它们是否已经渲染
+  if (charts.length > 0) {
+    let renderedCount = 0;
+    charts.forEach((chart, index) => {
+      if (chart.tagName === 'CANVAS') {
+        // 检查canvas是否有内容
+        try {
+          const ctx = chart.getContext('2d');
+          const imageData = ctx.getImageData(0, 0, chart.width, chart.height);
+          const hasContent = imageData.data.some(pixel => pixel !== 0);
+          if (hasContent) {
+            renderedCount++;
+            console.log(`Canvas ${index} 已渲染`);
+          } else {
+            console.log(`Canvas ${index} 未渲染`);
+          }
+        } catch (e) {
+          console.log(`Canvas ${index} 检查失败:`, e);
+        }
+      } else if (chart.classList.contains('simple-chart')) {
+        // 简单图表已经渲染
+        renderedCount++;
+        console.log(`简单图表 ${index} 已渲染`);
+      }
+    });
+    
+    console.log(`已渲染图表数量: ${renderedCount}/${charts.length}`);
+    return renderedCount === charts.length;
+  }
+  
+  return false;
 }
 
 // 继续HTML导出的逻辑
@@ -791,10 +823,15 @@ function exportImage(){
   console.log('开始图片导出...');
   render(); // 确保是最新预览
   
+  // 添加超时机制，防止无限循环
+  let waitCount = 0;
+  const MAX_WAIT_COUNT = 20; // 最多等待20次，约4秒
+  
   // 等待图表渲染完成
   const waitForChartsAndExport = () => {
-    console.log('检查图表渲染状态...');
+    console.log('检查图表渲染状态...', `等待次数: ${waitCount + 1}/${MAX_WAIT_COUNT}`);
     const preview = document.getElementById('preview');
+    
     if (checkChartsRendered(preview)) {
       console.log('图表已渲染，开始导出...');
       // 额外等待确保图表完全渲染
@@ -822,9 +859,35 @@ function exportImage(){
         }
       }, 1000); // 额外等待1秒确保图表完全渲染
     } else {
-      console.log('图表未渲染完成，继续等待...');
-      // 如果图表还没渲染完成，继续等待
-      setTimeout(waitForChartsAndExport, 200);
+      waitCount++;
+      if (waitCount >= MAX_WAIT_COUNT) {
+        console.warn('等待超时，强制开始导出...');
+        // 超时后强制开始导出
+        const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+        console.log('强制生成图片，标题:', title);
+        
+        if (typeof html2canvas === 'undefined') {
+          console.log('html2canvas未加载，开始加载...');
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+          script.onload = () => {
+            console.log('html2canvas加载完成，开始生成图片');
+            generateImage();
+          };
+          script.onerror = () => {
+            console.error('html2canvas加载失败');
+            alert('❌ 图片导出库加载失败，请重试');
+          };
+          document.head.appendChild(script);
+        } else {
+          console.log('html2canvas已加载，开始生成图片');
+          generateImage();
+        }
+      } else {
+        console.log('图表未渲染完成，继续等待...');
+        // 如果图表还没渲染完成，继续等待
+        setTimeout(waitForChartsAndExport, 200);
+      }
     }
   };
   
