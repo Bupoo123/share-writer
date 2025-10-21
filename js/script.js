@@ -30,10 +30,6 @@ function render(){
   const src = document.getElementById('src').value.trim();
   const container = document.getElementById('preview');
   container.className = 'doc'; // reset classes
-  
-  // 清理图表处理状态
-  chartsProcessed.clear();
-  
   // 主题与宽度
   const theme = document.getElementById('theme').value;
   if(theme==='serif') container.classList.add('serif');
@@ -58,10 +54,7 @@ function render(){
   const processedSrc = document.getElementById('src').value.trim();
   
   // 解析 Markdown
-  let html = marked.parse(processedSrc || '（在左侧粘贴内容，点击"生成预览"查看效果）');
-  
-  // 处理JSON图表
-  html = processJsonCharts(html);
+  const html = marked.parse(processedSrc || '（在左侧粘贴内容，点击"生成预览"查看效果）');
 
   // 封面 & 目录
   const fm = document.getElementById('frontmatter').value;
@@ -96,11 +89,6 @@ function render(){
   frag.appendChild(tmp);
   container.innerHTML = '';
   container.appendChild(frag);
-  
-  // 处理JSON图表
-  setTimeout(() => {
-    processChartsInContainer(container);
-  }, 100);
   
   // 更新统计信息
   updateStats();
@@ -143,323 +131,6 @@ function removeTitleFromContent(content) {
   return result.join('\n');
 }
 
-// 检测JSON图表数据
-function detectJsonChart(content) {
-  if (!content) return null;
-  
-  try {
-    // 尝试解析JSON
-    const jsonData = JSON.parse(content);
-    
-    // 检查是否包含图表必需字段
-    if (jsonData.type && jsonData.data) {
-      console.log('检测到有效的图表数据:', jsonData.type);
-      return jsonData;
-    }
-  } catch (e) {
-    // 不是有效的JSON，返回null
-    console.log('JSON解析失败:', e.message);
-    return null;
-  }
-  
-  return null;
-}
-
-// 创建简单的HTML图表（备用方案）
-function createSimpleChart(chartData, container) {
-  const chartContainer = document.createElement('div');
-  chartContainer.className = 'simple-chart';
-  chartContainer.style.cssText = `
-    margin: 20px 0;
-    padding: 20px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    text-align: center;
-  `;
-  
-  if (chartData.type === 'pie' && chartData.data && chartData.data.labels && chartData.data.datasets) {
-    const dataset = chartData.data.datasets[0];
-    const labels = chartData.data.labels;
-    const data = dataset.data;
-    const colors = dataset.backgroundColor || ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
-    
-    // 计算总数
-    const total = data.reduce((sum, value) => sum + value, 0);
-    
-    // 创建饼图标题
-    if (chartData.options && chartData.options.plugins && chartData.options.plugins.title) {
-      const title = document.createElement('h3');
-      title.textContent = chartData.options.plugins.title.text;
-      title.style.cssText = 'margin: 0 0 20px 0; color: #333; font-size: 18px;';
-      chartContainer.appendChild(title);
-    }
-    
-    // 创建简单的饼图可视化
-    const pieContainer = document.createElement('div');
-    pieContainer.style.cssText = 'display: flex; justify-content: center; margin: 20px 0;';
-    
-    // 创建饼图SVG
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', '200');
-    svg.setAttribute('height', '200');
-    svg.style.cssText = 'border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
-    
-    let currentAngle = 0;
-    const radius = 80;
-    const centerX = 100;
-    const centerY = 100;
-    
-    data.forEach((value, index) => {
-      const percentage = (value / total) * 100;
-      const angle = (percentage / 100) * 360;
-      
-      if (angle > 0) {
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const startAngle = currentAngle;
-        const endAngle = currentAngle + angle;
-        
-        const x1 = centerX + radius * Math.cos((startAngle - 90) * Math.PI / 180);
-        const y1 = centerY + radius * Math.sin((startAngle - 90) * Math.PI / 180);
-        const x2 = centerX + radius * Math.cos((endAngle - 90) * Math.PI / 180);
-        const y2 = centerY + radius * Math.sin((endAngle - 90) * Math.PI / 180);
-        
-        const largeArcFlag = angle > 180 ? 1 : 0;
-        const pathData = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
-        
-        path.setAttribute('d', pathData);
-        path.setAttribute('fill', colors[index]);
-        path.setAttribute('stroke', '#fff');
-        path.setAttribute('stroke-width', '2');
-        
-        svg.appendChild(path);
-        currentAngle += angle;
-      }
-    });
-    
-    pieContainer.appendChild(svg);
-    chartContainer.appendChild(pieContainer);
-    
-    // 创建图例
-    const legend = document.createElement('div');
-    legend.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 20px;';
-    
-    labels.forEach((label, index) => {
-      const percentage = ((data[index] / total) * 100).toFixed(1);
-      
-      // 创建图例项
-      const legendItem = document.createElement('div');
-      legendItem.style.cssText = `
-        display: flex; 
-        align-items: center; 
-        gap: 10px; 
-        padding: 8px 12px;
-        background: #f8fafc;
-        border-radius: 8px;
-        border-left: 4px solid ${colors[index]};
-        transition: transform 0.2s ease;
-      `;
-      
-      // 添加悬停效果
-      legendItem.onmouseover = () => {
-        legendItem.style.transform = 'translateX(4px)';
-        legendItem.style.background = '#f1f5f9';
-      };
-      legendItem.onmouseout = () => {
-        legendItem.style.transform = 'translateX(0)';
-        legendItem.style.background = '#f8fafc';
-      };
-      
-      const colorBox = document.createElement('div');
-      colorBox.style.cssText = `
-        width: 20px; 
-        height: 20px; 
-        background-color: ${colors[index]}; 
-        border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      `;
-      
-      const labelText = document.createElement('span');
-      labelText.textContent = `${label}`;
-      labelText.style.cssText = 'font-size: 14px; color: #333; font-weight: 500; flex: 1;';
-      
-      const valueText = document.createElement('span');
-      valueText.textContent = `${data[index]} (${percentage}%)`;
-      valueText.style.cssText = 'font-size: 12px; color: #666; font-weight: 400;';
-      
-      legendItem.appendChild(colorBox);
-      legendItem.appendChild(labelText);
-      legendItem.appendChild(valueText);
-      legend.appendChild(legendItem);
-    });
-    
-    chartContainer.appendChild(legend);
-    
-    // 添加说明文字
-    const note = document.createElement('div');
-    note.innerHTML = `
-      <div style="margin-top: 15px; padding: 8px 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; font-size: 12px; color: #0369a1;">
-        📊 图表预览模式 - 数据可视化已优化显示
-      </div>
-    `;
-    chartContainer.appendChild(note);
-    
-    return chartContainer;
-  }
-  
-  return null;
-}
-
-// 渲染JSON图表
-function renderJsonChart(chartData, container) {
-  const canvas = document.createElement('canvas');
-  canvas.id = 'chart-' + Date.now();
-  canvas.style.maxWidth = '100%';
-  canvas.style.height = '400px';
-  
-  const chartContainer = document.createElement('div');
-  chartContainer.className = 'chart-container';
-  chartContainer.style.cssText = `
-    margin: 20px 0;
-    padding: 20px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    text-align: center;
-  `;
-  
-  chartContainer.appendChild(canvas);
-  container.appendChild(chartContainer);
-  
-  // 创建图表
-  const ctx = canvas.getContext('2d');
-  const chart = new Chart(ctx, chartData);
-  
-  return chart;
-}
-
-// 处理Markdown中的JSON图表
-function processJsonCharts(htmlContent) {
-  // 直接返回HTML内容，图表渲染将在DOM中处理
-  return htmlContent;
-}
-
-// 图表处理重试计数器
-let chartRetryCount = 0;
-const MAX_CHART_RETRIES = 3;
-
-// 图表处理状态跟踪
-let chartsProcessed = new Set();
-
-// 在容器中处理图表
-function processChartsInContainer(container) {
-  console.log('开始处理图表，Chart.js可用:', typeof Chart !== 'undefined');
-  
-  // 如果Chart.js未加载，等待一下再试（最多重试3次）
-  if (typeof Chart === 'undefined') {
-    if (chartRetryCount < MAX_CHART_RETRIES) {
-      chartRetryCount++;
-      console.log(`Chart.js未加载，等待加载... (重试 ${chartRetryCount}/${MAX_CHART_RETRIES})`);
-      setTimeout(() => {
-        processChartsInContainer(container);
-      }, 1000);
-      return;
-    } else {
-      console.error('Chart.js库加载失败，使用备用方案');
-      // 使用简单的HTML图表作为备用方案
-      const codeBlocks = container.querySelectorAll('pre code');
-      codeBlocks.forEach((codeBlock) => {
-        const codeText = codeBlock.textContent.trim();
-        const chartData = detectJsonChart(codeText);
-        if (chartData) {
-          const simpleChart = createSimpleChart(chartData);
-          if (simpleChart) {
-            const preElement = codeBlock.parentElement;
-            preElement.parentNode.replaceChild(simpleChart, preElement);
-          }
-        }
-      });
-      return;
-    }
-  }
-  
-  // 重置重试计数器
-  chartRetryCount = 0;
-  
-  // 查找所有代码块
-  const codeBlocks = container.querySelectorAll('pre code');
-  console.log('找到代码块数量:', codeBlocks.length);
-  
-  codeBlocks.forEach((codeBlock, index) => {
-    const codeText = codeBlock.textContent.trim();
-    console.log('检查代码块', index, ':', codeText.substring(0, 100) + '...');
-    
-    // 检查是否已经处理过这个代码块
-    const codeHash = codeText.substring(0, 50); // 使用前50个字符作为标识
-    if (chartsProcessed.has(codeHash)) {
-      console.log('代码块已处理过，跳过');
-      return;
-    }
-    
-    const chartData = detectJsonChart(codeText);
-    
-    if (chartData) {
-      console.log('检测到图表数据:', chartData);
-      
-      // 标记为已处理
-      chartsProcessed.add(codeHash);
-      
-      // 创建图表容器
-      const chartContainer = document.createElement('div');
-      chartContainer.className = 'json-chart';
-      chartContainer.style.cssText = `
-        margin: 20px 0;
-        padding: 20px;
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        text-align: center;
-      `;
-      
-      // 创建画布
-      const canvas = document.createElement('canvas');
-      canvas.id = 'chart-' + Date.now() + '-' + index;
-      canvas.style.maxWidth = '100%';
-      canvas.style.height = '400px';
-      
-      chartContainer.appendChild(canvas);
-      
-      // 替换代码块
-      const preElement = codeBlock.parentElement;
-      preElement.parentNode.replaceChild(chartContainer, preElement);
-      
-      // 延迟渲染图表，确保DOM已更新
-      setTimeout(() => {
-        try {
-          if (typeof Chart === 'undefined') {
-            console.error('Chart.js库未加载');
-            chartContainer.innerHTML = `<div style="color: red;">Chart.js库未加载，无法渲染图表</div><pre><code>${codeText}</code></pre>`;
-            return;
-          }
-          
-          const ctx = canvas.getContext('2d');
-          const chart = new Chart(ctx, chartData);
-          console.log('图表渲染成功:', chart);
-        } catch (error) {
-          console.error('图表渲染失败:', error);
-          // 如果图表渲染失败，显示原始代码
-          chartContainer.innerHTML = `<div style="color: red;">图表渲染失败: ${error.message}</div><pre><code>${codeText}</code></pre>`;
-        }
-      }, 200);
-    } else {
-      console.log('代码块', index, '不是有效的图表数据');
-    }
-  });
-}
-
 // 更新字数统计和页数统计
 function updateStats(){
   const src = document.getElementById('src').value.trim();
@@ -478,86 +149,9 @@ function escapeHtml(s){
 // 导出完整 HTML（带内联样式，所见即所得）
 function exportHTML(){
   render(); // 确保是最新预览
+  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
+  const doc = document.getElementById('preview').cloneNode(true);
   
-  // 等待图表渲染完成
-  const waitForCharts = () => {
-    const preview = document.getElementById('preview');
-    if (checkChartsRendered(preview)) {
-      const title = document.getElementById('docTitle').value.trim() || '未命名分析';
-      const doc = preview.cloneNode(true);
-      
-      // 处理图表导出 - 将canvas转换为图片
-      const charts = doc.querySelectorAll('canvas');
-      charts.forEach((canvas, index) => {
-        try {
-          // 将canvas转换为图片
-          const img = document.createElement('img');
-          img.src = canvas.toDataURL('image/png');
-          img.style.maxWidth = '100%';
-          img.style.height = 'auto';
-          img.alt = `图表 ${index + 1}`;
-          
-          // 替换canvas
-          const container = canvas.parentElement;
-          if (container) {
-            container.replaceChild(img, canvas);
-          }
-        } catch (error) {
-          console.warn('图表转换失败:', error);
-        }
-      });
-      
-      // 继续HTML导出逻辑
-      continueHTMLExport(doc, title);
-    } else {
-      // 如果图表还没渲染完成，继续等待
-      setTimeout(waitForCharts, 200);
-    }
-  };
-  
-  setTimeout(waitForCharts, 500); // 初始等待500ms
-}
-
-// 检查图表是否已渲染完成
-function checkChartsRendered(container) {
-  const charts = container.querySelectorAll('canvas, .simple-chart');
-  console.log('找到图表元素数量:', charts.length);
-  
-  // 如果有图表元素，检查它们是否已经渲染
-  if (charts.length > 0) {
-    let renderedCount = 0;
-    charts.forEach((chart, index) => {
-      if (chart.tagName === 'CANVAS') {
-        // 检查canvas是否有内容
-        try {
-          const ctx = chart.getContext('2d');
-          const imageData = ctx.getImageData(0, 0, chart.width, chart.height);
-          const hasContent = imageData.data.some(pixel => pixel !== 0);
-          if (hasContent) {
-            renderedCount++;
-            console.log(`Canvas ${index} 已渲染`);
-          } else {
-            console.log(`Canvas ${index} 未渲染`);
-          }
-        } catch (e) {
-          console.log(`Canvas ${index} 检查失败:`, e);
-        }
-      } else if (chart.classList.contains('simple-chart')) {
-        // 简单图表已经渲染
-        renderedCount++;
-        console.log(`简单图表 ${index} 已渲染`);
-      }
-    });
-    
-    console.log(`已渲染图表数量: ${renderedCount}/${charts.length}`);
-    return renderedCount === charts.length;
-  }
-  
-  return false;
-}
-
-// 继续HTML导出的逻辑
-function continueHTMLExport(doc, title) {
   // 获取所有样式表的内容
   let css = '';
   const styleSheets = document.styleSheets;
@@ -606,9 +200,6 @@ function continueHTMLExport(doc, title) {
       .doc.font-kaiti{font-family:var(--font-kaiti)}
       .doc.font-heiti{font-family:var(--font-heiti)}
       .doc.font-fangsong{font-family:var(--font-fangsong)}
-      .simple-chart{margin:20px 0;padding:20px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);text-align:center}
-      .simple-chart h3{margin:0 0 20px 0;color:#333;font-size:18px}
-      .simple-chart svg{border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
     `;
   }
   
@@ -820,87 +411,23 @@ function safeFileName(name){
 
 // 图片导出功能 - 使用html2canvas生成图片
 function exportImage(){
-  console.log('开始图片导出...');
   render(); // 确保是最新预览
+  const title = document.getElementById('docTitle').value.trim() || '未命名分析';
   
-  // 添加超时机制，防止无限循环
-  let waitCount = 0;
-  const MAX_WAIT_COUNT = 20; // 最多等待20次，约4秒
+  // 动态加载html2canvas库
+  if (typeof html2canvas === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    script.onload = () => {
+      generateImage();
+    };
+    document.head.appendChild(script);
+  } else {
+    generateImage();
+  }
   
-  // 等待图表渲染完成
-  const waitForChartsAndExport = () => {
-    console.log('检查图表渲染状态...', `等待次数: ${waitCount + 1}/${MAX_WAIT_COUNT}`);
-    const preview = document.getElementById('preview');
-    
-    if (checkChartsRendered(preview)) {
-      console.log('图表已渲染，开始导出...');
-      // 额外等待确保图表完全渲染
-      setTimeout(() => {
-        const title = document.getElementById('docTitle').value.trim() || '未命名分析';
-        console.log('准备生成图片，标题:', title);
-        
-        // 动态加载html2canvas库
-        if (typeof html2canvas === 'undefined') {
-          console.log('html2canvas未加载，开始加载...');
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-          script.onload = () => {
-            console.log('html2canvas加载完成，开始生成图片');
-            generateImage();
-          };
-          script.onerror = () => {
-            console.error('html2canvas加载失败');
-            alert('❌ 图片导出库加载失败，请重试');
-          };
-          document.head.appendChild(script);
-        } else {
-          console.log('html2canvas已加载，开始生成图片');
-          generateImage();
-        }
-      }, 1000); // 额外等待1秒确保图表完全渲染
-    } else {
-      waitCount++;
-      if (waitCount >= MAX_WAIT_COUNT) {
-        console.warn('等待超时，强制开始导出...');
-        // 超时后强制开始导出
-        const title = document.getElementById('docTitle').value.trim() || '未命名分析';
-        console.log('强制生成图片，标题:', title);
-        
-        if (typeof html2canvas === 'undefined') {
-          console.log('html2canvas未加载，开始加载...');
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-          script.onload = () => {
-            console.log('html2canvas加载完成，开始生成图片');
-            generateImage();
-          };
-          script.onerror = () => {
-            console.error('html2canvas加载失败');
-            alert('❌ 图片导出库加载失败，请重试');
-          };
-          document.head.appendChild(script);
-        } else {
-          console.log('html2canvas已加载，开始生成图片');
-          generateImage();
-        }
-      } else {
-        console.log('图表未渲染完成，继续等待...');
-        // 如果图表还没渲染完成，继续等待
-        setTimeout(waitForChartsAndExport, 200);
-      }
-    }
-  };
-  
-  setTimeout(waitForChartsAndExport, 500); // 初始等待500ms
-}
-
-// 生成图片的函数
-function generateImage() {
-    console.log('开始生成图片...');
+  function generateImage() {
     const previewElement = document.getElementById('preview');
-    const title = document.getElementById('docTitle').value.trim() || '未命名分析';
-    console.log('预览元素:', previewElement);
-    console.log('文档标题:', title);
     
     // 创建临时容器，优化图片质量
     const tempContainer = document.createElement('div');
@@ -916,59 +443,6 @@ function generateImage() {
     
     // 复制预览内容
     const clonedContent = previewElement.cloneNode(true);
-    
-    // 处理图表 - 将canvas转换为图片
-    const charts = clonedContent.querySelectorAll('canvas');
-    console.log('找到图表数量:', charts.length);
-    
-    charts.forEach((canvas, index) => {
-      try {
-        console.log('处理图表', index, ':', canvas);
-        
-        // 检查canvas是否有内容
-        const ctx = canvas.getContext('2d');
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const hasContent = imageData.data.some(pixel => pixel !== 0);
-        
-        console.log('图表', index, '是否有内容:', hasContent);
-        
-        if (hasContent) {
-          const img = document.createElement('img');
-          img.src = canvas.toDataURL('image/png');
-          img.style.maxWidth = '100%';
-          img.style.height = 'auto';
-          img.alt = `图表 ${index + 1}`;
-          
-          const container = canvas.parentElement;
-          if (container) {
-            container.replaceChild(img, canvas);
-          }
-          console.log('图表', index, '转换成功');
-        } else {
-          console.warn('图表', index, '内容为空，尝试使用备用方案');
-          
-          // 尝试从原始代码块获取JSON数据并创建简单图表
-          const codeBlock = canvas.closest('.json-chart')?.querySelector('pre code');
-          if (codeBlock) {
-            const codeText = codeBlock.textContent.trim();
-            const chartData = detectJsonChart(codeText);
-            if (chartData) {
-              const simpleChart = createSimpleChart(chartData);
-              if (simpleChart) {
-                const container = canvas.parentElement;
-                if (container) {
-                  container.replaceChild(simpleChart, canvas);
-                }
-                console.log('使用备用图表方案');
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('图表转换失败:', error);
-      }
-    });
-    
     tempContainer.appendChild(clonedContent);
     document.body.appendChild(tempContainer);
     
@@ -1002,6 +476,7 @@ function generateImage() {
       alert('❌ 图片导出失败，请重试');
       document.body.removeChild(tempContainer);
     });
+  }
 }
 
 // 微信优化HTML导出 - 简化版本，适合微信预览
@@ -1391,14 +866,15 @@ function showHelp() {
 
 ## 📖 软件简介
 
-**Share Writer** 是一款专为内容创作者、分析师和专业人士设计的在线文档排版与导出工具。它能够将 Markdown 格式的文本内容快速转换为美观的文档，并支持一键导出为 HTML 和 Word 格式，让您的分析报告、技术文档和商务文件更加专业规范。
+**Share Writer** 是一款专为内容创作者、分析师和专业人士设计的在线文档排版与导出工具。它能够将 Markdown 格式的文本内容快速转换为美观的文档，并支持一键导出为多种格式，让您的分析报告、技术文档和商务文件更加专业规范。
 
 ### 核心特色
 - 🚀 **实时预览** - 所见即所得的编辑体验
 - 🎨 **多主题排版** - 支持简洁和经典两种视觉风格
-- 📄 **智能导出** - 一键生成 HTML 和 Word 文档
+- 📄 **智能导出** - 支持图片、微信HTML、纯文本、HTML、Word、PDF等多种格式
 - 📑 **自动目录** - 根据标题层级自动生成文档目录
 - 🏷️ **封面定制** - 可添加文档标题、作者信息和生成日期
+- 🤖 **智能标题识别** - 自动识别Markdown大标题并填写到文档标题框
 
 ## 🛠️ 使用指南
 
@@ -1406,15 +882,13 @@ function showHelp() {
 
 **① 输入内容**
 - 在左侧文本框中粘贴或输入您的文档内容
-- **智能标题识别**：自动识别第一个 \`# 标题\` 并填写到"文档标题"框
-- **JSON图表支持**：自动识别JSON格式的图表数据并渲染为可视化图表
+- **智能标题识别**：自动识别第一个 \`# 标题\` 并填写到"文档标题"框，同时从正文中移除该标题
 - 支持标准的 Markdown 语法：
   - \`# 一级标题\`、\`## 二级标题\`、\`### 三级标题\`
   - \`**加粗文本**\`、\`*斜体文本*\`
   - \`- 列表项\` 或 \`1. 有序列表\`
   - \`> 引用内容\`
   - \`\` \`行内代码\` \`\` 和代码块
-  - **JSON图表**：在代码块中粘贴Chart.js格式的JSON数据
 
 **② 实时预览**
 - 右侧区域会实时显示格式化后的效果
@@ -1482,41 +956,10 @@ function showHelp() {
 
 ### 最佳实践
 1. **结构化写作** - 使用多级标题（##、###）来组织内容结构
-2. **列表清晰** - 使用无序列表展示要点，有序列表展示步骤
-3. **代码高亮** - 使用代码块来展示程序代码或配置信息
-4. **引用强调** - 使用引用块来突出重要观点或他人言论
-5. **数据可视化** - 使用JSON图表展示数据，支持饼图、柱状图、折线图等
-
-### JSON图表使用
-在代码块中粘贴Chart.js格式的JSON数据，系统会自动渲染为图表：
-
-\`\`\`json
-{
-  "type": "pie",
-  "data": {
-    "labels": ["中国", "澳大利亚", "美国", "越南", "其他"],
-    "datasets": [{
-      "data": [99, 0.5, 0.3, 0.1, 0.1],
-      "backgroundColor": ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD"]
-    }]
-  },
-  "options": {
-    "responsive": true,
-    "plugins": {
-      "title": {
-        "display": true,
-        "text": "全球重稀土供应占比（2024-2025）"
-      }
-    }
-  }
-}
-\`\`\`
-
-支持的图表类型：
-- **饼图** (pie) - 适合展示占比数据
-- **柱状图** (bar) - 适合对比数据
-- **折线图** (line) - 适合趋势分析
-- **散点图** (scatter) - 适合相关性分析
+2. **智能标题** - 在文档开头使用 \`# 标题\` 格式，系统会自动识别并处理
+3. **列表清晰** - 使用无序列表展示要点，有序列表展示步骤
+4. **代码高亮** - 使用代码块来展示程序代码或配置信息
+5. **引用强调** - 使用引用块来突出重要观点或他人言论
 
 ### 快捷键
 - \`Ctrl + Enter\` - 快速刷新预览
@@ -1528,6 +971,7 @@ function showHelp() {
 - **快速转发** - 使用纯文本格式，直接复制粘贴
 - **内部分享** - 使用 HTML 格式，保持最佳视觉效果
 - **正式提交** - 使用 Word 格式，便于他人编辑和打印
+- **打印存档** - 使用 PDF 格式，适合打印和长期保存
 - **长期存档** - 建议同时保存多种格式
 
 ## 🔧 技术特性
@@ -1538,8 +982,12 @@ function showHelp() {
 - 纯前端实现，无需服务器支持，保护数据隐私
 
 ### 文件格式
+- **图片导出** - 生成高清PNG图片，微信分享效果最佳
+- **微信HTML** - 专门优化的HTML格式，微信内可预览
+- **纯文本** - 纯文本格式，可直接复制到微信
 - **HTML 导出** - 包含完整的内联样式，独立可运行
 - **Word 导出** - 使用标准的 Word HTML 格式，专业排版
+- **PDF 导出** - 使用浏览器打印功能，适合打印和存档
 
 ## 🎯 适用场景
 
@@ -1704,41 +1152,7 @@ document.getElementById('src').value =
 ## 重点方向
 1. 公卫监测（多病原/AMR/院感）
 2. 医政高质量发展（DRG/DIP 适配）
-3. 心脑血管专病网络（胸痛/卒中中心）
-
-## 数据展示
-以下是全球重稀土供应占比的饼图：
-
-\`\`\`json
-{
-  "type": "pie",
-  "data": {
-    "labels": ["中国", "澳大利亚", "美国", "越南", "其他"],
-    "datasets": [{
-      "data": [99, 0.5, 0.3, 0.1, 0.1],
-      "backgroundColor": ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD"],
-      "borderColor": ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF"],
-      "borderWidth": 1
-    }]
-  },
-  "options": {
-    "responsive": true,
-    "plugins": {
-      "legend": {
-        "position": "top",
-        "labels": {
-          "color": "#333333"
-        }
-      },
-      "title": {
-        "display": true,
-        "text": "全球重稀土供应占比（2024-2025）",
-        "color": "#333333"
-      }
-    }
-  }
-}
-\`\`\``;
+3. 心脑血管专病网络（胸痛/卒中中心）`;
 
 // 触发自动标题识别
 const initialSrc = document.getElementById('src').value.trim();
