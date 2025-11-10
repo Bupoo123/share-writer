@@ -2,7 +2,7 @@
 const EMAILJS_CONFIG = {
     serviceId: 'YOUR_SERVICE_ID',      // 需要在EmailJS网站获取
     templateId: 'YOUR_TEMPLATE_ID',    // 需要在EmailJS网站创建模板
-    publicKey: 'YOUR_PUBLIC_KEY'       // 需要在EmailJS网站获取
+    publicKey: 'O6iEJNyL60n5AOOF2'     // Public Key 已配置
 };
 
 // 目标邮箱
