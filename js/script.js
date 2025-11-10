@@ -1,7 +1,7 @@
-// EmailJS配置 - 需要替换为您的实际配置
+// EmailJS配置 - 已完整配置
 const EMAILJS_CONFIG = {
-    serviceId: 'YOUR_SERVICE_ID',      // 需要在EmailJS网站获取
-    templateId: 'YOUR_TEMPLATE_ID',    // 需要在EmailJS网站创建模板
+    serviceId: 'service_wl5byxl',      // Service ID 已配置
+    templateId: 'template_4r54gfi',    // Template ID 已配置
     publicKey: 'O6iEJNyL60n5AOOF2'     // Public Key 已配置
 };
 
