@@ -28,10 +28,29 @@ async function sendEmail() {
     }
     
     // 检查EmailJS配置
-    if (EMAILJS_CONFIG.serviceId === 'YOUR_SERVICE_ID' || 
-        EMAILJS_CONFIG.templateId === 'YOUR_TEMPLATE_ID' ||
-        EMAILJS_CONFIG.publicKey === 'YOUR_PUBLIC_KEY') {
-        alert('请先在代码中配置EmailJS参数（serviceId, templateId, publicKey）\n\n详细配置说明请查看：EMAILJS配置说明.md');
+    const missingConfigs = [];
+    if (EMAILJS_CONFIG.serviceId === 'YOUR_SERVICE_ID') {
+        missingConfigs.push('Service ID');
+    }
+    if (EMAILJS_CONFIG.templateId === 'YOUR_TEMPLATE_ID') {
+        missingConfigs.push('Template ID');
+    }
+    if (EMAILJS_CONFIG.publicKey === 'YOUR_PUBLIC_KEY' || !EMAILJS_CONFIG.publicKey) {
+        missingConfigs.push('Public Key');
+    }
+    
+    if (missingConfigs.length > 0) {
+        const configStatus = [];
+        configStatus.push('当前配置状态：');
+        configStatus.push(`✅ Public Key: ${EMAILJS_CONFIG.publicKey !== 'YOUR_PUBLIC_KEY' && EMAILJS_CONFIG.publicKey ? '已配置' : '未配置'}`);
+        configStatus.push(`❌ Service ID: ${EMAILJS_CONFIG.serviceId !== 'YOUR_SERVICE_ID' ? '已配置' : '未配置'}`);
+        configStatus.push(`❌ Template ID: ${EMAILJS_CONFIG.templateId !== 'YOUR_TEMPLATE_ID' ? '已配置' : '未配置'}`);
+        configStatus.push('');
+        configStatus.push('还需要配置：' + missingConfigs.join('、'));
+        configStatus.push('');
+        configStatus.push('详细配置步骤请查看：EmailJS配置详细步骤.md');
+        
+        alert(configStatus.join('\n'));
         return;
     }
     
