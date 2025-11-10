@@ -1,3 +1,108 @@
+// EmailJS配置 - 需要替换为您的实际配置
+const EMAILJS_CONFIG = {
+    serviceId: 'YOUR_SERVICE_ID',      // 需要在EmailJS网站获取
+    templateId: 'YOUR_TEMPLATE_ID',    // 需要在EmailJS网站创建模板
+    publicKey: 'YOUR_PUBLIC_KEY'       // 需要在EmailJS网站获取
+};
+
+// 目标邮箱
+const TARGET_EMAIL = 'bupoo.7c04633@m.yinxiang.com';
+
+// 初始化EmailJS
+if (typeof emailjs !== 'undefined') {
+    emailjs.init(EMAILJS_CONFIG.publicKey);
+}
+
+// 获取Markdown原始内容
+function getMarkdownContent() {
+    return document.getElementById('src').value.trim();
+}
+
+// 发送邮件功能
+async function sendEmail() {
+    const markdownContent = getMarkdownContent();
+    
+    if (!markdownContent) {
+        alert('请先输入内容后再发送邮件');
+        return;
+    }
+    
+    // 检查EmailJS配置
+    if (EMAILJS_CONFIG.serviceId === 'YOUR_SERVICE_ID' || 
+        EMAILJS_CONFIG.templateId === 'YOUR_TEMPLATE_ID' ||
+        EMAILJS_CONFIG.publicKey === 'YOUR_PUBLIC_KEY') {
+        alert('请先在代码中配置EmailJS参数（serviceId, templateId, publicKey）\n\n详细配置说明请查看：EMAILJS配置说明.md');
+        return;
+    }
+    
+    // 检查EmailJS是否加载
+    if (typeof emailjs === 'undefined') {
+        alert('EmailJS库加载失败，请检查网络连接');
+        return;
+    }
+    
+    // 获取文档信息
+    const title = document.getElementById('docTitle').value.trim() || '未命名文档';
+    const author = document.getElementById('docAuthor').value.trim() || '';
+    const currentDate = new Date().toLocaleDateString('zh-CN');
+    
+    // 显示发送中提示
+    const btn = document.getElementById('btnSendEmail');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '📧 发送中...';
+    
+    try {
+        // 准备邮件参数
+        const templateParams = {
+            to_email: TARGET_EMAIL,
+            subject: `${title} - ${currentDate}`,
+            message: markdownContent, // Markdown格式内容
+            document_title: title,
+            document_author: author || '未填写',
+            document_date: currentDate,
+            word_count: markdownContent.length.toString()
+        };
+        
+        // 发送邮件
+        const response = await emailjs.send(
+            EMAILJS_CONFIG.serviceId,
+            EMAILJS_CONFIG.templateId,
+            templateParams
+        );
+        
+        console.log('邮件发送成功:', response);
+        alert(`✅ 邮件已成功发送到 ${TARGET_EMAIL}\n\n文档标题：${title}\n发送时间：${currentDate}`);
+        
+    } catch (error) {
+        console.error('邮件发送错误:', error);
+        let errorMsg = '邮件发送失败';
+        
+        if (error.text) {
+            errorMsg += `: ${error.text}`;
+        } else if (error.message) {
+            errorMsg += `: ${error.message}`;
+        }
+        
+        const fullErrorMsg = `邮件发送失败！
+
+可能的原因：
+1. EmailJS配置不正确（serviceId, templateId, publicKey）
+2. 邮件模板中的变量名称不匹配
+3. 网络连接问题
+4. EmailJS服务限制（免费版每月200封）
+
+错误详情：${error.text || error.message || '未知错误'}
+
+请检查配置后重试。`;
+        alert(fullErrorMsg);
+    } finally {
+        // 恢复按钮状态
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
 // 简单：把 Markdown 转为 HTML；并生成目录
 function buildTOC(container){
   const hs = container.querySelectorAll('h1,h2,h3');
@@ -1112,6 +1217,7 @@ document.getElementById('btnExportText').addEventListener('click',exportText);
 document.getElementById('btnExportHtml').addEventListener('click',exportHTML);
 document.getElementById('btnExportDocx').addEventListener('click',exportDOCX);
 document.getElementById('btnExportPdf').addEventListener('click',exportPDF);
+document.getElementById('btnSendEmail').addEventListener('click',sendEmail);
 document.getElementById('btnHelp').addEventListener('click',showHelp);
 document.getElementById('theme').addEventListener('change',render);
 document.getElementById('width').addEventListener('change',render);
